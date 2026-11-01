@@ -121,3 +121,26 @@ def test_future_week_does_not_take_pending(db):
     assert a.id in {m.makeup_of_id for m in makeups}
     next_sat = [x for x in day_items(db, sat + timedelta(days=7)) if x.kind == "makeup"]
     assert next_sat == []
+
+
+def test_mail_preview_page(db):
+    from app.main import app
+
+    setup_month(db, ["DAY"] * 7)
+    with TestClient(app) as c:
+        c.post("/login", data={"password": "pw"})
+        c.post("/mail/test", data={"day": MON.isoformat()})
+        page = c.get(f"/?start={MON}").text
+        assert "/mail/preview/" in page
+        name = page.split("/mail/preview/")[1].split('"')[0]
+        r = c.get(f"/mail/preview/{name}")
+        assert r.status_code == 200 and "오늘의 과제" in r.text
+        assert c.get("/mail/preview/..%2F.env").status_code == 404
+
+
+def test_codespaces_base_url(monkeypatch):
+    from app.config import _default_base_url
+
+    monkeypatch.setenv("CODESPACE_NAME", "cool-name")
+    monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+    assert _default_base_url() == "https://cool-name-8000.app.github.dev"

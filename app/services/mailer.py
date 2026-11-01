@@ -1,4 +1,5 @@
 import os
+import re
 import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -10,12 +11,12 @@ from ..config import settings
 def send_mail(to: str, subject: str, html: str, text: str) -> str:
     """메일 발송. console 모드에서는 outbox/ 에 HTML 파일로 저장한다. 반환: 결과 설명."""
     if settings.mail_backend == "console":
-        os.makedirs("outbox", exist_ok=True)
-        path = os.path.join("outbox", f"{datetime.now():%Y%m%d-%H%M%S}.html")
+        os.makedirs(OUTBOX, exist_ok=True)
+        path = os.path.join(OUTBOX, f"{datetime.now():%Y%m%d-%H%M%S}.html")
         with open(path, "w", encoding="utf-8") as f:
             f.write(html)
         print(f"[mail:console] to={to} subject={subject} -> {path}")
-        return f"console 모드: {path} 에 저장됨"
+        return "console 모드: 실제 발송 대신 저장했습니다. 아래 '메일 미리보기'로 확인하세요."
 
     if not settings.gmail_address or not settings.gmail_app_password:
         raise RuntimeError("GMAIL_ADDRESS / GMAIL_APP_PASSWORD 가 설정되지 않았습니다.")
@@ -30,3 +31,24 @@ def send_mail(to: str, subject: str, html: str, text: str) -> str:
         s.login(settings.gmail_address, settings.gmail_app_password.replace(" ", ""))
         s.send_message(msg)
     return f"{to} 로 발송 완료"
+
+
+OUTBOX = "outbox"
+_NAME = re.compile(r"^\d{8}-\d{6}\.html$")
+
+
+def latest_outbox_file() -> str | None:
+    if not os.path.isdir(OUTBOX):
+        return None
+    names = sorted(n for n in os.listdir(OUTBOX) if _NAME.match(n))
+    return names[-1] if names else None
+
+
+def read_outbox(name: str) -> str | None:
+    if not _NAME.match(name):
+        return None
+    path = os.path.join(OUTBOX, name)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return f.read()

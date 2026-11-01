@@ -1,0 +1,14 @@
+{
+  "name": "Study Shift",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install --user -r requirements.txt",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": { "label": "Study Shift", "onAutoForward": "openBrowser" }
+  },
+  "containerEnv": {
+    "MAIL_BACKEND": "console",
+    "APP_PASSWORD": "change-me"
+  }
+}

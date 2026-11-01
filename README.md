@@ -6,6 +6,20 @@
 - 스택: Python 3.11+ · FastAPI · SQLite(SQLAlchemy) · Jinja2 · APScheduler · Gmail SMTP
 - 인증: `.env`의 비밀번호 1개 (메일 버튼 링크는 1회용 토큰이라 로그인 없이 동작)
 
+## 아이패드·휴대폰에서 실행해 보기 (GitHub Codespaces)
+
+PC 없이 브라우저만으로 화면을 확인하는 방법입니다. 창을 닫으면 잠시 뒤 꺼지므로 **확인용**입니다.
+
+1. Safari에서 아래 주소 열기 (GitHub 로그인)
+   https://codespaces.new/arielinchristaverse/project_ieltsmademecrazy/tree/claude/shift-study-task-scheduler-cl2wf7
+2. **Create codespace** → 2~3분 대기 (설치와 서버 실행이 자동으로 진행)
+3. 아래쪽 **PORTS** 탭 → `Study Shift (8000)` 줄의 🌐(Open in Browser) 아이콘
+4. 비밀번호 `change-me`로 로그인
+5. 테스트 메일은 실제로 보내지지 않고, 이번 주 화면의 **최근 메일 미리보기**로 열어 볼 수 있습니다
+
+서버가 안 떠 있으면 아래쪽 TERMINAL에 `bash .devcontainer/start.sh` 입력.
+다 쓰면 https://github.com/codespaces 에서 해당 Codespace를 Stop 또는 Delete (무료 사용 시간 절약).
+
 ## 로컬 실행
 
 ```bash

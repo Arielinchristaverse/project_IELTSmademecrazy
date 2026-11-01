@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,9 @@ from .. import clock
 from ..db import get_db
 from ..models import Assignment, CalendarDay, MailLog, Week
 from ..services.allocator import day_capacity, generate_week, is_weekend_day, pending_items, week_start_of
+from ..config import settings
 from ..services.daily import send_test_mail
+from ..services.mailer import latest_outbox_file, read_outbox
 from ..services.progress import set_status, week_progress
 from ..templating import templates
 
@@ -56,6 +58,7 @@ def week_page(request: Request, start: str | None = None, msg: str = "", db: Ses
             "today": today,
             "msg": msg,
             "logs": logs,
+            "preview": latest_outbox_file() if settings.mail_backend == "console" else None,
         },
     )
 
@@ -83,3 +86,11 @@ def change_status(aid: int, status: str = Form(...), db: Session = Depends(get_d
     if a and status in ("scheduled", "done", "missed"):
         set_status(db, a, status)
     return RedirectResponse(f"/?start={a.week_start if a else ''}", status_code=303)
+
+
+@router.get("/mail/preview/{name}")
+def mail_preview(name: str):
+    html = read_outbox(name)
+    if html is None:
+        return HTMLResponse("미리보기 파일이 없습니다.", status_code=404)
+    return HTMLResponse(html)

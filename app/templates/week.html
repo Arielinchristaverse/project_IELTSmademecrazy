@@ -12,6 +12,7 @@
 </div>
 
 {% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
+{% if preview %}<p style="margin:-8px 0 20px"><a class="btn ghost" href="/mail/preview/{{ preview }}" target="_blank">최근 메일 미리보기 ↗</a></p>{% endif %}
 
 <div class="summary">
   <div>
