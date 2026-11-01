@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div>
+    <h1>{{ year }}년 {{ month }}월 근무</h1>
+    <p class="sub">날짜별 근무 유형을 고르고, 공부가 어려운 날은 '제외'에 체크하세요.</p>
+  </div>
+  <div class="spacer"></div>
+  <a class="btn ghost" href="/calendar?month={{ prev }}">← 이전 달</a>
+  <a class="btn ghost" href="/calendar?month={{ next }}">다음 달 →</a>
+</div>
+{% if saved %}<div class="notice">저장했습니다. 이미 생성한 주가 있다면 '이번 주'에서 배정을 다시 생성하세요.</div>{% endif %}
+<form method="post" action="/calendar">
+  <input type="hidden" name="month" value="{{ year }}-{{ '%02d' % month }}">
+  <table class="cal">
+    <tr>{% for w in WEEKDAYS_KO %}<th class="{{ 'sun' if loop.last }}">{{ w }}</th>{% endfor %}</tr>
+    {% for week in weeks %}
+    <tr>
+      {% for d in week %}
+        {% set c = days.get(d) %}
+        {% if d.month != month %}
+          <td class="other"><span class="num">{{ d.day }}</span></td>
+        {% else %}
+          <td class="{{ 'today' if d == today }}">
+            <span class="num {{ 'sun' if d.weekday() == 6 }}">{{ d.day }}</span>
+            <select name="shift_{{ d.isoformat() }}">
+              <option value="">—</option>
+              {% for code in codes %}<option value="{{ code }}" {{ 'selected' if c and c.shift_code == code }}>{{ labels[code] }}</option>{% endfor %}
+            </select>
+            <label><input type="checkbox" name="excl_{{ d.isoformat() }}" {{ 'checked' if c and c.excluded }}> 제외</label>
+          </td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  <button style="margin-top:16px">저장</button>
+</form>
+{% endblock %}

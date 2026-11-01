@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block content %}
+<form class="login" method="post" action="/login">
+  <h1>Study Shift</h1>
+  <p class="sub">비밀번호를 입력하세요.</p>
+  {% if error %}<p class="warn">{{ error }}</p>{% endif %}
+  <input type="password" name="password" autofocus required>
+  <button style="width:100%">로그인</button>
+</form>
+{% endblock %}

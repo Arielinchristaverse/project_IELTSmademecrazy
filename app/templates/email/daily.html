@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;color:#1f2a44;">
+
+        <!-- 인사말 -->
+        <tr>
+          <td style="padding:0 0 20px 0;border-bottom:2px solid #1f2a44;">
+            <div style="font-size:12px;letter-spacing:1px;color:#1e4d3a;font-weight:bold;">TODAY'S STUDY</div>
+            <div style="font-size:17px;line-height:26px;margin-top:6px;color:#1f2a44;">{{ greeting }}</div>
+          </td>
+        </tr>
+
+        <!-- 오늘의 과제 -->
+        <tr>
+          <td style="padding:20px 0 6px 0;font-size:14px;font-weight:bold;color:#1f2a44;">
+            오늘의 과제 <span style="font-weight:normal;color:#6b7280;">· 총 {{ total_min }}분</span>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              {% for it in items %}
+              <tr>
+                <td style="padding:12px 0;border-bottom:1px solid #e3e6eb;font-size:15px;line-height:22px;color:#1f2a44;">
+                  {% if it.a.kind == 'makeup' %}<span style="font-size:11px;color:#ffffff;background-color:#1f2a44;padding:1px 6px;">보충</span>&nbsp;{% endif %}{{ it.a.task.name }}
+                  <div style="font-size:12px;color:#6b7280;">{{ it.a.task.subject }}{% if it.a.task.subject %} · {% endif %}{{ it.a.task.duration_min }}분</div>
+                </td>
+                <td align="right" style="padding:12px 0;border-bottom:1px solid #e3e6eb;white-space:nowrap;">
+                  {% if it.links %}
+                  <a href="{{ it.links.done }}" style="display:inline-block;padding:7px 14px;background-color:#1e4d3a;color:#ffffff;font-size:13px;text-decoration:none;border-radius:4px;">달성</a>&nbsp;
+                  <a href="{{ it.links.missed }}" style="display:inline-block;padding:6px 13px;border:1px solid #c9ced6;color:#1f2a44;font-size:13px;text-decoration:none;border-radius:4px;">미달성</a>
+                  {% else %}
+                  <span style="font-size:12px;color:#6b7280;">{{ '달성' if it.a.status == 'done' else '미달성' }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td style="padding:12px 0;font-size:14px;color:#6b7280;">오늘 배정된 과제가 없습니다.</td></tr>
+              {% endfor %}
+            </table>
+          </td>
+        </tr>
+
+        <!-- 진척도 -->
+        <tr>
+          <td style="padding:24px 0 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="font-size:13px;color:#6b7280;">이번 주 진척도</td>
+                <td align="right" style="font-size:26px;font-weight:bold;color:#1e4d3a;">{{ progress }}%</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 주말 보충 리스트 -->
+        <tr>
+          <td style="padding:24px 0 6px 0;font-size:14px;font-weight:bold;color:#1f2a44;">주말 보충 리스트</td>
+        </tr>
+        <tr>
+          <td style="font-size:13px;line-height:22px;color:#1f2a44;">
+            {% for p in pending %}
+              · {{ p.task.name }} <span style="color:#6b7280;">({{ p.task.duration_min }}분, {{ p.date.month }}/{{ p.date.day }})</span><br>
+            {% else %}
+              <span style="color:#6b7280;">보류된 과제가 없습니다.</span>
+            {% endfor %}
+          </td>
+        </tr>
+
+        <!-- 영어 문장 -->
+        {% if sentence %}
+        <tr>
+          <td style="padding:28px 0 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#e8f0ec;">
+              <tr>
+                <td style="padding:16px 18px;">
+                  <div style="font-size:15px;line-height:23px;color:#1e4d3a;font-style:italic;">“{{ sentence.text }}”</div>
+                  {% if sentence.meaning %}<div style="font-size:12px;line-height:19px;color:#4b5563;margin-top:6px;">{{ sentence.meaning }}</div>{% endif %}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {% endif %}
+
+        <tr>
+          <td style="padding:28px 0 0 0;font-size:11px;color:#9ca3af;">
+            <a href="{{ base_url }}/" style="color:#9ca3af;">주간 보기 열기</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

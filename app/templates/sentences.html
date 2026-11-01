@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>영어 문장</h1>
+<p class="sub">총 {{ count }}개 · 다음 메일에는 {{ next_no }}번 문장이 나갑니다. 한 줄에 한 문장씩, 뜻은 <code>|</code> 뒤에 적으세요.</p>
+{% if saved %}<div class="notice">저장했습니다.</div>{% endif %}
+<form method="post" action="/sentences">
+  <textarea name="body" rows="24" style="width:100%">{{ text }}</textarea>
+  <button style="margin-top:12px">저장</button>
+</form>
+{% endblock %}

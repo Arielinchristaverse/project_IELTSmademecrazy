@@ -1,0 +1,87 @@
+:root {
+  --navy: #1f2a44;
+  --green: #1e4d3a;
+  --green-soft: #e8f0ec;
+  --line: #e3e6eb;
+  --muted: #6b7280;
+  --bg: #ffffff;
+  --warn: #8a5a00;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--navy);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+}
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+header { border-bottom: 1px solid var(--line); }
+header .inner { max-width: 1040px; margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; gap: 24px; }
+header .brand { font-weight: 700; color: var(--navy); letter-spacing: -0.01em; }
+header nav { display: flex; gap: 18px; flex: 1; }
+header nav a { color: var(--muted); font-size: 14px; }
+header nav a.on { color: var(--navy); font-weight: 600; }
+main { max-width: 1040px; margin: 0 auto; padding: 28px 20px 60px; }
+h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 16px; margin: 32px 0 12px; }
+.sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.notice { background: var(--green-soft); color: var(--green); padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+.warn { color: var(--warn); font-size: 14px; }
+button, .btn {
+  font: inherit; font-size: 14px; border: 1px solid var(--navy); background: var(--navy); color: #fff;
+  padding: 7px 14px; border-radius: 6px; cursor: pointer;
+}
+button.ghost, .btn.ghost { background: #fff; color: var(--navy); border-color: var(--line); }
+button.link { background: none; border: none; color: var(--muted); padding: 0 4px; font-size: 13px; }
+button.link:hover { color: var(--navy); }
+input, select, textarea {
+  font: inherit; font-size: 14px; color: var(--navy); border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 8px; background: #fff;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--green-soft); border-color: var(--green); }
+table.list { width: 100%; border-collapse: collapse; }
+table.list th, table.list td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 14px; }
+table.list th { color: var(--muted); font-weight: 500; font-size: 13px; }
+.muted { color: var(--muted); }
+.stat { font-size: 32px; font-weight: 700; color: var(--green); line-height: 1.1; }
+.tag { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+.tag.green { border-color: var(--green); color: var(--green); }
+.tag.navy { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+/* 주간 보기 */
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.day { border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-height: 160px; }
+.day.today { border-color: var(--green); }
+.day.weekend { background: #fafbfc; }
+.day .head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+.day .head b { font-size: 14px; }
+.day .cap { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.item { font-size: 13px; padding: 6px 0; border-top: 1px solid var(--line); }
+.item .name { font-weight: 500; }
+.item.done .name { color: var(--green); }
+.item.missed .name { color: var(--muted); text-decoration: line-through; }
+.item form { display: inline; }
+.item .acts { white-space: nowrap; }
+.summary { display: grid; grid-template-columns: 160px 1fr; gap: 24px; margin: 8px 0 24px; }
+
+/* 달력 */
+.cal { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.cal th { font-size: 13px; color: var(--muted); font-weight: 500; padding: 6px; }
+.cal td { border: 1px solid var(--line); vertical-align: top; padding: 8px; height: 92px; }
+.cal td.other { background: #fafbfc; color: #b8bec8; }
+.cal td.today { outline: 2px solid var(--green); outline-offset: -2px; }
+.cal .num { font-size: 13px; font-weight: 600; }
+.cal .sun { color: #a33; }
+.cal select { width: 100%; margin: 6px 0 4px; padding: 4px; }
+.cal label { font-size: 12px; color: var(--muted); }
+
+.login { max-width: 320px; margin: 100px auto; }
+.login input { width: 100%; margin: 12px 0; }
+.center { max-width: 420px; margin: 80px auto; text-align: center; }
+
+@media (max-width: 760px) {
+  .week { grid-template-columns: 1fr; }
+  header nav { gap: 12px; overflow-x: auto; }
+  .summary { grid-template-columns: 1fr; }
+}

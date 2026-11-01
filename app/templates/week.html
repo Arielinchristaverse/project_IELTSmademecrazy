@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div>
+    <h1>{{ ws.month }}월 {{ ws.day }}일 주간</h1>
+    <p class="sub">{{ ws }} ~ {{ days[-1].date }}{% if week %} · 생성 {{ week.generated_at.strftime('%m/%d %H:%M') }}{% else %} · 아직 생성되지 않음{% endif %}</p>
+  </div>
+  <div class="spacer"></div>
+  <a class="btn ghost" href="/?start={{ prev }}">← 이전 주</a>
+  <a class="btn ghost" href="/">이번 주</a>
+  <a class="btn ghost" href="/?start={{ next }}">다음 주 →</a>
+</div>
+
+{% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
+
+<div class="summary">
+  <div>
+    <div class="muted" style="font-size:13px">이번 주 진척도</div>
+    <div class="stat">{{ progress }}%</div>
+  </div>
+  <div class="row" style="align-items:flex-start">
+    <form method="post" action="/weeks/generate">
+      <input type="hidden" name="start" value="{{ ws }}">
+      <button>{{ '배정 다시 생성' if week else '주간 배정 생성' }}</button>
+    </form>
+    <form method="post" action="/mail/test" class="row">
+      <input type="date" name="day" value="{{ today if days[0].date <= today <= days[-1].date else ws }}">
+      <button class="ghost">테스트 메일 보내기</button>
+    </form>
+    <p class="muted" style="font-size:13px;margin:4px 0 0;width:100%">
+      다시 생성하면 오늘 이후의 기록되지 않은 배정만 새로 만듭니다. 지난 날과 이미 기록한 배정은 그대로 둡니다.
+    </p>
+  </div>
+</div>
+
+{% if week and week.warnings %}
+  {% for w in week.warnings.split('\n') %}<p class="warn">⚠ {{ w }}</p>{% endfor %}
+{% endif %}
+
+<div class="week">
+{% for d in days %}
+  <div class="day {{ 'today' if d.is_today }} {{ 'weekend' if d.weekend }}">
+    <div class="head">
+      <b>{{ d.date.month }}/{{ d.date.day }} {{ WEEKDAYS_KO[d.date.weekday()] }}</b>
+      <span>
+        {% if d.cal and d.cal.excluded %}<span class="tag">제외</span>
+        {% elif d.cal and d.cal.shift %}<span class="tag {{ 'green' if d.weekend }}">{{ d.cal.shift.label }}</span>
+        {% else %}<span class="tag">미입력</span>{% endif %}
+      </span>
+    </div>
+    <div class="cap">{{ d.used }} / {{ d.capacity }}분{% if d.weekend %} · 보충일{% endif %}</div>
+    {% for a in d.assignments %}
+      <div class="item {{ a.status }}">
+        <div class="name">{% if a.kind == 'makeup' %}<span class="tag navy">보충</span> {% endif %}{{ a.task.name }}</div>
+        <div class="muted acts">{{ a.task.duration_min }}분 ·
+          {% for s, label in [('done','달성'),('missed','미달성'),('scheduled','예정')] if s != a.status %}
+            <form method="post" action="/assignments/{{ a.id }}/status"><input type="hidden" name="status" value="{{ s }}"><button class="link">{{ label }}</button></form>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endfor %}
+</div>
+
+<h2>보류 목록 (주말 보충 대상)</h2>
+{% if pending %}
+<table class="list">
+  <tr><th>과제</th><th>과목</th><th>소요</th><th>원래 날짜</th></tr>
+  {% for a in pending %}
+  <tr><td>{{ a.task.name }}</td><td>{{ a.task.subject }}</td><td>{{ a.task.duration_min }}분</td><td>{{ a.date }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted">보류된 과제가 없습니다.</p>{% endif %}
+
+<h2>최근 발송 기록</h2>
+{% if logs %}
+<table class="list">
+  <tr><th>날짜</th><th>상태</th><th>시각</th><th>오류</th></tr>
+  {% for l in logs %}<tr><td>{{ l.date }}</td><td>{{ l.status }}</td><td>{{ l.sent_at.strftime('%H:%M') }}</td><td class="muted">{{ l.error }}</td></tr>{% endfor %}
+</table>
+{% else %}<p class="muted">아직 자동 발송 기록이 없습니다.</p>{% endif %}
+{% endblock %}

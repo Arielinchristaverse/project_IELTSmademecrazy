@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>근무 유형 · 메일</h1>
+<p class="sub">근무 유형별 하루 공부 가능 시간과 메일 발송 시각을 정합니다.</p>
+{% if saved %}<div class="notice">저장했습니다.</div>{% endif %}
+<form method="post" action="/settings">
+  <table class="list">
+    <tr><th>근무 유형</th><th>공부 가능 시간(분)</th><th>메일 발송 시각</th></tr>
+    {% for s in shifts %}
+    <tr>
+      <td>{{ s.label }}{% if s.code == 'OFF' %} <span class="tag green">보충일</span>{% endif %}</td>
+      <td><input type="number" min="0" step="5" name="{{ s.code }}_minutes" value="{{ s.study_minutes }}" style="width:110px"></td>
+      <td><input type="time" name="{{ s.code }}_time" value="{{ s.send_time.strftime('%H:%M') }}"></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <h2>받는 사람</h2>
+  <input type="email" name="recipient_email" value="{{ app.recipient_email }}" placeholder="비워두면 GMAIL_ADDRESS 로 발송" style="width:320px">
+  <p class="muted" style="font-size:13px">오프인 날과 일요일은 '주말'로 보고, 보류 과제를 먼저 배정합니다.</p>
+  <button style="margin-top:16px">저장</button>
+</form>
+{% endblock %}

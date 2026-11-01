@@ -1,0 +1,54 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
+
+from . import auth, scheduler
+from .config import settings
+from .db import Base, SessionLocal, engine
+from .routers import actions, calendar, sentences, settings as settings_router, tasks, weeks
+from .seed import seed
+
+
+def init_db() -> None:
+    Base.metadata.create_all(engine)
+    db = SessionLocal()
+    try:
+        seed(db)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    if settings.scheduler_enabled:
+        scheduler.start()
+    yield
+    scheduler.stop()
+
+
+app = FastAPI(title="교대근무 공부 스케줄러", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    if not auth.is_public(request.url.path) and not request.session.get("auth"):
+        return RedirectResponse("/login", status_code=303)
+    return await call_next(request)
+
+
+# 마지막에 추가한 미들웨어가 가장 바깥에서 먼저 실행됨 → 세션이 require_login보다 먼저 준비됨
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, max_age=60 * 60 * 24 * 30, same_site="lax")
+
+app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
+app.include_router(auth.router)
+app.include_router(weeks.router)
+app.include_router(settings_router.router)
+app.include_router(calendar.router)
+app.include_router(tasks.router)
+app.include_router(sentences.router)
+app.include_router(actions.router)

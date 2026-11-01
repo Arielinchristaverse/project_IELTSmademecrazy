@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block content %}
+<div class="center">
+  <h1>{{ title }}</h1>
+  {% if task %}<p class="muted">{{ task.name }} · {{ task.duration_min }}분</p>{% endif %}
+  <p>{{ message }}</p>
+  {% if progress is not none %}
+  <p class="muted" style="margin-top:28px">이번 주 진척도</p>
+  <div class="stat">{{ progress }}%</div>
+  <p class="muted">보류 {{ pending_count }}개</p>
+  {% endif %}
+</div>
+{% endblock %}

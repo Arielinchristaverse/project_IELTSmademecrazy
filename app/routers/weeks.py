@@ -1,0 +1,85 @@
+from datetime import date, timedelta
+
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import RedirectResponse
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from .. import clock
+from ..db import get_db
+from ..models import Assignment, CalendarDay, MailLog, Week
+from ..services.allocator import day_capacity, generate_week, is_weekend_day, pending_items, week_start_of
+from ..services.daily import send_test_mail
+from ..services.progress import set_status, week_progress
+from ..templating import templates
+
+router = APIRouter()
+
+
+@router.get("/")
+def week_page(request: Request, start: str | None = None, msg: str = "", db: Session = Depends(get_db)):
+    today = clock.today()
+    ws = week_start_of(date.fromisoformat(start)) if start else week_start_of(today)
+    week = db.scalar(select(Week).where(Week.start_date == ws))
+    assignments = db.scalars(
+        select(Assignment).where(Assignment.week_start == ws).order_by(Assignment.date, Assignment.position)
+    ).all()
+    cal = {c.date: c for c in db.scalars(select(CalendarDay).where(CalendarDay.date.between(ws, ws + timedelta(6))))}
+    days = []
+    for i in range(7):
+        d = ws + timedelta(days=i)
+        c = cal.get(d)
+        items = [a for a in assignments if a.date == d]
+        days.append(
+            {
+                "date": d,
+                "cal": c,
+                "capacity": day_capacity(c),
+                "weekend": is_weekend_day(d, c),
+                "assignments": items,
+                "used": sum(a.task.duration_min for a in items),
+                "is_today": d == today,
+            }
+        )
+    logs = db.scalars(select(MailLog).order_by(MailLog.date.desc()).limit(5)).all()
+    return templates.TemplateResponse(
+        request,
+        "week.html",
+        {
+            "ws": ws,
+            "week": week,
+            "days": days,
+            "progress": week_progress(db, ws),
+            "pending": pending_items(db),
+            "prev": ws - timedelta(days=7),
+            "next": ws + timedelta(days=7),
+            "today": today,
+            "msg": msg,
+            "logs": logs,
+        },
+    )
+
+
+@router.post("/weeks/generate")
+def generate(start: str = Form(...), db: Session = Depends(get_db)):
+    ws = week_start_of(date.fromisoformat(start))
+    generate_week(db, ws, clock.today())
+    return RedirectResponse(f"/?start={ws}&msg=배정을 생성했습니다.", status_code=303)
+
+
+@router.post("/mail/test")
+def test_mail(day: str = Form(...), db: Session = Depends(get_db)):
+    d = date.fromisoformat(day)
+    try:
+        result = send_test_mail(db, d)
+    except Exception as e:  # noqa: BLE001
+        result = f"발송 실패: {e}"
+    return RedirectResponse(f"/?start={week_start_of(d)}&msg=테스트 메일 — {result}", status_code=303)
+
+
+@router.post("/assignments/{aid}/status")
+def change_status(aid: int, status: str = Form(...), db: Session = Depends(get_db)):
+    a = db.get(Assignment, aid)
+    if a and status in ("scheduled", "done", "missed"):
+        set_status(db, a, status)
+    return RedirectResponse(f"/?start={a.week_start if a else ''}", status_code=303)
