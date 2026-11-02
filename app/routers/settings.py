@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import SHIFT_CODES, AppSettings, ShiftType
+from ..services.mailer import mail_status
 from ..templating import templates
 
 router = APIRouter()
@@ -18,7 +19,12 @@ def settings_page(request: Request, db: Session = Depends(get_db), saved: int = 
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"shifts": [shifts[c] for c in SHIFT_CODES], "app": db.get(AppSettings, 1), "saved": saved},
+        {
+            "shifts": [shifts[c] for c in SHIFT_CODES],
+            "app": db.get(AppSettings, 1),
+            "saved": saved,
+            "mail": mail_status(),
+        },
     )
 
 

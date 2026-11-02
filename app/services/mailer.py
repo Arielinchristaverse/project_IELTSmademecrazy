@@ -27,10 +27,27 @@ def send_mail(to: str, subject: str, html: str, text: str) -> str:
     msg["To"] = to
     msg.attach(MIMEText(text, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
-        s.login(settings.gmail_address, settings.gmail_app_password.replace(" ", ""))
-        s.send_message(msg)
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
+            s.login(settings.gmail_address, settings.gmail_app_password.replace(" ", ""))
+            s.send_message(msg)
+    except smtplib.SMTPAuthenticationError as e:
+        raise RuntimeError(
+            "Gmail 로그인 실패: 앱 비밀번호가 틀렸거나, GMAIL_ADDRESS 가 비밀번호를 만든 계정과 다릅니다."
+        ) from e
+    except (OSError, TimeoutError) as e:
+        raise RuntimeError(f"Gmail 서버(smtp.gmail.com:465)에 연결하지 못했습니다. 네트워크가 메일 포트를 막고 있을 수 있습니다. ({e})") from e
     return f"{to} 로 발송 완료"
+
+
+def mail_status() -> dict:
+    """설정 화면에 보여줄 메일 연결 상태 (비밀번호 값 자체는 노출하지 않음)."""
+    return {
+        "backend": settings.mail_backend,
+        "address": settings.gmail_address,
+        "has_password": bool(settings.gmail_app_password),
+        "base_url": settings.base_url,
+    }
 
 
 OUTBOX = "outbox"

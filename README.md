@@ -18,6 +18,17 @@ PC 없이 브라우저만으로 화면을 확인하는 방법입니다. 창을 �
 5. 테스트 메일은 실제로 보내지지 않고, 이번 주 화면의 **최근 메일 미리보기**로 열어 볼 수 있습니다
 
 서버가 안 떠 있으면 아래쪽 TERMINAL에 `bash .devcontainer/start.sh` 입력.
+
+**Codespaces에서 실제 Gmail로 받기**: https://github.com/settings/codespaces → *Codespaces secrets* → *New secret*으로
+아래 3개를 만들고, *Repository access*에 이 저장소를 선택한 뒤 Codespace를 재시작.
+
+| Name | Value |
+|---|---|
+| `MAIL_BACKEND` | `smtp` |
+| `GMAIL_ADDRESS` | 보내는 Gmail 주소 |
+| `GMAIL_APP_PASSWORD` | Gmail 앱 비밀번호 16자리 |
+
+적용 여부는 앱의 *근무 유형 · 메일* 화면 아래 **메일 연결 상태**에서 확인.
 다 쓰면 https://github.com/codespaces 에서 해당 Codespace를 Stop 또는 Delete (무료 사용 시간 절약).
 
 ## 로컬 실행
