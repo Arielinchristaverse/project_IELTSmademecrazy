@@ -144,3 +144,22 @@ def test_codespaces_base_url(monkeypatch):
     monkeypatch.setenv("CODESPACE_NAME", "cool-name")
     monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
     assert _default_base_url() == "https://cool-name-8000.app.github.dev"
+
+
+def test_production_refuses_default_password(db, monkeypatch):
+    from app.config import settings
+    from app.main import app
+
+    monkeypatch.setattr(type(settings), "is_production", True)
+    monkeypatch.setattr(type(settings), "app_password", "change-me")
+    with TestClient(app) as c:
+        r = c.post("/login", data={"password": "change-me"})
+        assert r.status_code == 403
+        assert c.get("/healthz").json() == {"ok": True}
+
+
+def test_render_base_url(monkeypatch):
+    from app.config import _default_base_url
+
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://study-shift.onrender.com")
+    assert _default_base_url() == "https://study-shift.onrender.com"

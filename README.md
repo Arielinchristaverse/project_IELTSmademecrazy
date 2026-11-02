@@ -31,6 +31,19 @@ PC 없이 브라우저만으로 화면을 확인하는 방법입니다. 창을 �
 적용 여부는 앱의 *근무 유형 · 메일* 화면 아래 **메일 연결 상태**에서 확인.
 다 쓰면 https://github.com/codespaces 에서 해당 Codespace를 Stop 또는 Delete (무료 사용 시간 절약).
 
+## 24시간 서버에 배포 (Render)
+
+`render.yaml`(Blueprint)에 설정이 들어 있어 브라우저만으로 배포할 수 있습니다.
+Starter 요금제(약 $7/월) + 디스크 1GB(약 $0.25/월). 무료 요금제는 메일 포트가 막혀 있고 디스크를 쓸 수 없습니다.
+
+1. https://render.com → GitHub로 가입, 결제 수단 등록
+2. **New + → Blueprint** → 이 저장소 선택
+3. 입력 칸에 `APP_PASSWORD`(새 로그인 비밀번호), `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` 입력 → **Apply**
+4. 배포가 끝나면 `https://study-shift-xxxx.onrender.com` 같은 주소로 접속 (메일 버튼 주소는 자동 설정)
+
+데이터는 디스크(`/var/data/app.db`)에 저장되어 재배포해도 유지됩니다.
+공개 서버에서는 기본 비밀번호 `change-me`로는 로그인할 수 없습니다.
+
 ## 로컬 실행
 
 ```bash

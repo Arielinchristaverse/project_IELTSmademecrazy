@@ -7,6 +7,9 @@ load_dotenv()
 
 
 def _default_base_url() -> str:
+    # Render는 서비스의 공개 주소를 RENDER_EXTERNAL_URL 로 넣어 준다
+    if os.getenv("RENDER_EXTERNAL_URL"):
+        return os.environ["RENDER_EXTERNAL_URL"]
     # GitHub Codespaces에서는 포워딩된 https 주소를 자동으로 사용
     name = os.getenv("CODESPACE_NAME")
     domain = os.getenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
@@ -26,6 +29,12 @@ class Settings:
     timezone: ZoneInfo = ZoneInfo(os.getenv("TIMEZONE", "Asia/Seoul"))
     scheduler_enabled: bool = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
     token_valid_days: int = 14
+    # 인터넷에 공개된 서버(Render)에서 실행 중인지
+    is_production: bool = os.getenv("RENDER", "").lower() == "true"
+
+    @property
+    def password_is_default(self) -> bool:
+        return self.app_password in ("", "change-me")
 
 
 settings = Settings()

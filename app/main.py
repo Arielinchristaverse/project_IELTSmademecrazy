@@ -42,7 +42,13 @@ async def require_login(request: Request, call_next):
 
 
 # 마지막에 추가한 미들웨어가 가장 바깥에서 먼저 실행됨 → 세션이 require_login보다 먼저 준비됨
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, max_age=60 * 60 * 24 * 30, same_site="lax")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key,
+    max_age=60 * 60 * 24 * 30,
+    same_site="lax",
+    https_only=settings.base_url.startswith("https://"),
+)
 
 app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
 app.include_router(auth.router)

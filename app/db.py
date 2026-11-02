@@ -11,8 +11,10 @@ class Base(DeclarativeBase):
 
 
 def _make_engine(url: str):
-    if url.startswith("sqlite:///./"):
-        os.makedirs(os.path.dirname(url.removeprefix("sqlite:///")) or ".", exist_ok=True)
+    if url.startswith("sqlite:///"):
+        folder = os.path.dirname(url.removeprefix("sqlite:///"))
+        if folder:
+            os.makedirs(folder, exist_ok=True)
     return create_engine(url, connect_args={"check_same_thread": False} if url.startswith("sqlite") else {})
 
 

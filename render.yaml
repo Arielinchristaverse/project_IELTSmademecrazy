@@ -1,0 +1,32 @@
+# Render Blueprint: 대시보드에서 New → Blueprint 로 이 저장소를 연결하면 아래 설정대로 만들어진다.
+services:
+  - type: web
+    name: study-shift
+    runtime: python
+    plan: starter            # 유료(상시 실행 + 메일 발송 포트 허용 + 디스크 사용 가능)
+    region: singapore        # 한국과 가장 가까운 지역
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    disk:
+      name: study-data
+      mountPath: /var/data   # SQLite 파일 저장 위치 (재배포해도 유지)
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DATABASE_URL
+        value: sqlite:////var/data/app.db
+      - key: TIMEZONE
+        value: Asia/Seoul
+      - key: MAIL_BACKEND
+        value: smtp
+      - key: SECRET_KEY
+        generateValue: true  # Render가 임의 값 자동 생성
+      # 아래 3개는 Blueprint 생성 화면에서 직접 입력 (저장소에 남지 않음)
+      - key: APP_PASSWORD
+        sync: false
+      - key: GMAIL_ADDRESS
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
