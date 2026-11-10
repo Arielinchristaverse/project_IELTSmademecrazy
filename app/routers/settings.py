@@ -1,12 +1,17 @@
+import os
+import tempfile
 from datetime import time
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from starlette.background import BackgroundTask
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import SHIFT_CODES, AppSettings, ShiftType
+from .. import clock
+from ..services.backup import backup_to
 from ..services.mailer import mail_status
 from ..templating import templates
 
@@ -39,3 +44,17 @@ async def save_settings(request: Request, db: Session = Depends(get_db)):
     db.get(AppSettings, 1).recipient_email = (form.get("recipient_email") or "").strip()
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+@router.get("/admin/backup")
+def download_backup():
+    """현재 DB의 일관된 사본을 내려받는다 (로그인 필요)."""
+    fd, tmp = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    backup_to(tmp)
+    return FileResponse(
+        tmp,
+        media_type="application/octet-stream",
+        filename=f"study-shift-backup-{clock.now():%Y%m%d-%H%M%S}.db",
+        background=BackgroundTask(os.remove, tmp),
+    )

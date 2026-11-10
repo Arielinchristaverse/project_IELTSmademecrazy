@@ -163,3 +163,22 @@ def test_render_base_url(monkeypatch):
 
     monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://study-shift.onrender.com")
     assert _default_base_url() == "https://study-shift.onrender.com"
+
+
+def test_backup_download_is_valid_sqlite(db, tmp_path):
+    import sqlite3
+
+    from app.main import app
+
+    setup_month(db, ["DAY"] * 7)
+    with TestClient(app) as c:
+        assert c.get("/admin/backup", follow_redirects=False).status_code == 303  # 로그인 필요
+        c.post("/login", data={"password": "pw"})
+        r = c.get("/admin/backup")
+        assert r.status_code == 200
+        assert "attachment" in r.headers["content-disposition"]
+    f = tmp_path / "b.db"
+    f.write_bytes(r.content)
+    con = sqlite3.connect(f)
+    assert con.execute("select count(*) from tasks").fetchone()[0] == 2
+    con.close()
