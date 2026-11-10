@@ -35,6 +35,6 @@ def record_action(token: str, request: Request, db: Session = Depends(get_db)):
                 ctx.update(title="달성 기록 완료", message="수고했어요. 진척도에 반영했습니다.")
             else:
                 ctx.update(title="미달성 기록 완료", message="보류 목록에 추가했습니다. 주말(오프/일요일)에 다시 배정됩니다.")
-        ctx["progress"] = week_progress(db, a.week_start)
-        ctx["pending_count"] = len(pending_items(db))
+        ctx["progress"] = week_progress(db, a.user_id, a.week_start)
+        ctx["pending_count"] = len(pending_items(db, a.user_id))
     return templates.TemplateResponse(request, "action_result.html", ctx, status_code=status_code)

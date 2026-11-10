@@ -6,25 +6,17 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
+from scripts import migrate
+
 from . import auth, scheduler
 from .config import settings
-from .db import Base, SessionLocal, engine
+from .deps import NotLoggedIn
 from .routers import actions, calendar, sentences, settings as settings_router, tasks, weeks
-from .seed import seed
-
-
-def init_db() -> None:
-    Base.metadata.create_all(engine)
-    db = SessionLocal()
-    try:
-        seed(db)
-    finally:
-        db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    migrate.run()
     if settings.scheduler_enabled:
         scheduler.start()
     yield
@@ -36,9 +28,14 @@ app = FastAPI(title="교대근무 공부 스케줄러", lifespan=lifespan)
 
 @app.middleware("http")
 async def require_login(request: Request, call_next):
-    if not auth.is_public(request.url.path) and not request.session.get("auth"):
+    if not auth.is_public(request.url.path) and not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)
     return await call_next(request)
+
+
+@app.exception_handler(NotLoggedIn)
+async def not_logged_in(request: Request, exc: NotLoggedIn):
+    return RedirectResponse("/login", status_code=303)
 
 
 # 마지막에 추가한 미들웨어가 가장 바깥에서 먼저 실행됨 → 세션이 require_login보다 먼저 준비됨

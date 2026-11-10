@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from .. import clock
 from ..db import get_db
-from ..models import SHIFT_CODES, SHIFT_LABELS, CalendarDay
+from ..deps import current_user
+from ..models import SHIFT_CODES, SHIFT_LABELS, CalendarDay, User
 from ..templating import templates
 
 router = APIRouter()
@@ -23,11 +24,22 @@ def _parse_month(month: str | None) -> tuple[int, int]:
 
 
 @router.get("/calendar")
-def calendar_page(request: Request, month: str | None = None, saved: int = 0, db: Session = Depends(get_db)):
+def calendar_page(
+    request: Request,
+    month: str | None = None,
+    saved: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
     y, m = _parse_month(month)
     weeks = pycal.Calendar(firstweekday=0).monthdatescalendar(y, m)
     first, last = weeks[0][0], weeks[-1][-1]
-    days = {c.date: c for c in db.scalars(select(CalendarDay).where(CalendarDay.date.between(first, last)))}
+    days = {
+        c.date: c
+        for c in db.scalars(
+            select(CalendarDay).where(CalendarDay.user_id == user.id, CalendarDay.date.between(first, last))
+        )
+    }
     prev_m = date(y - 1, 12, 1) if m == 1 else date(y, m - 1, 1)
     next_m = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
     return templates.TemplateResponse(
@@ -49,21 +61,30 @@ def calendar_page(request: Request, month: str | None = None, saved: int = 0, db
 
 
 @router.post("/calendar")
-async def save_calendar(request: Request, db: Session = Depends(get_db)):
+async def save_calendar(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     form = await request.form()
     month = form.get("month")
     y, m = _parse_month(month)
+    existing = {
+        c.date: c
+        for c in db.scalars(
+            select(CalendarDay).where(
+                CalendarDay.user_id == user.id,
+                CalendarDay.date.between(date(y, m, 1), date(y, m, pycal.monthrange(y, m)[1])),
+            )
+        )
+    }
     for day in range(1, pycal.monthrange(y, m)[1] + 1):
         d = date(y, m, day)
         code = form.get(f"shift_{d.isoformat()}") or None
         excluded = form.get(f"excl_{d.isoformat()}") == "on"
-        row = db.get(CalendarDay, d)
+        row = existing.get(d)
         if code is None and not excluded:
             if row:
                 db.delete(row)
             continue
         if row is None:
-            row = CalendarDay(date=d)
+            row = CalendarDay(user_id=user.id, date=d)
             db.add(row)
         row.shift_code = code if code in SHIFT_CODES else None
         row.excluded = excluded

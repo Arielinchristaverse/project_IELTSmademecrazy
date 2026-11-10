@@ -29,6 +29,11 @@ class Settings:
     timezone: ZoneInfo = ZoneInfo(os.getenv("TIMEZONE", "Asia/Seoul"))
     scheduler_enabled: bool = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
     token_valid_days: int = 14
+    # 서버에서 켤 알림 수단. 사용자는 이 중에서 고른다 (push, email)
+    notify_channels: tuple[str, ...] = tuple(
+        c.strip() for c in os.getenv("NOTIFY_CHANNELS", "push,email").split(",") if c.strip()
+    )
+    admin_email: str = os.getenv("ADMIN_EMAIL", "").strip().lower()
     # 인터넷에 공개된 서버(Render)에서 실행 중인지
     is_production: bool = os.getenv("RENDER", "").lower() == "true"
 

@@ -8,11 +8,11 @@ from email.mime.text import MIMEText
 from ..config import settings
 
 
-def send_mail(to: str, subject: str, html: str, text: str) -> str:
-    """메일 발송. console 모드에서는 outbox/ 에 HTML 파일로 저장한다. 반환: 결과 설명."""
+def send_mail(to: str, subject: str, html: str, text: str, owner_id: int = 0) -> str:
+    """메일 발송. console 모드에서는 outbox/ 에 사용자별 HTML 파일로 저장한다. 반환: 결과 설명."""
     if settings.mail_backend == "console":
         os.makedirs(OUTBOX, exist_ok=True)
-        path = os.path.join(OUTBOX, f"{datetime.now():%Y%m%d-%H%M%S}.html")
+        path = os.path.join(OUTBOX, f"u{owner_id}-{datetime.now():%Y%m%d-%H%M%S-%f}.html")
         with open(path, "w", encoding="utf-8") as f:
             f.write(html)
         print(f"[mail:console] to={to} subject={subject} -> {path}")
@@ -51,18 +51,20 @@ def mail_status() -> dict:
 
 
 OUTBOX = "outbox"
-_NAME = re.compile(r"^\d{8}-\d{6}\.html$")
+_NAME = re.compile(r"^u(\d+)-\d{8}-\d{6}-\d{6}\.html$")
 
 
-def latest_outbox_file() -> str | None:
+def latest_outbox_file(owner_id: int) -> str | None:
+    """이 사용자에게 저장된 가장 최근 메일 파일 이름."""
     if not os.path.isdir(OUTBOX):
         return None
-    names = sorted(n for n in os.listdir(OUTBOX) if _NAME.match(n))
+    names = sorted(n for n in os.listdir(OUTBOX) if (m := _NAME.match(n)) and int(m.group(1)) == owner_id)
     return names[-1] if names else None
 
 
-def read_outbox(name: str) -> str | None:
-    if not _NAME.match(name):
+def read_outbox(name: str, owner_id: int) -> str | None:
+    m = _NAME.match(name)
+    if not m or int(m.group(1)) != owner_id:
         return None
     path = os.path.join(OUTBOX, name)
     if not os.path.isfile(path):

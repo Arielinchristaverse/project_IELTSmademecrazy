@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import clock
-from ..models import Assignment, CalendarDay, Task, Week
+from ..models import ActionToken, Assignment, CalendarDay, Task, Week
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ def allocate(
 
 
 # ---------------------------------------------------------------------------
-# DB 연동
+# DB 연동 — 모든 함수는 uid(사용자 id)로 범위를 제한한다
 # ---------------------------------------------------------------------------
 def week_start_of(d: date) -> date:
     return d - timedelta(days=d.weekday())  # 월요일 시작
@@ -173,16 +173,21 @@ def is_weekend_day(d: date, cal: CalendarDay | None) -> bool:
     return d.weekday() == 6 or (cal is not None and cal.shift_code == "OFF")
 
 
-def pending_items(db: Session) -> list[Assignment]:
+def get_calendar_day(db: Session, uid: int, d: date) -> CalendarDay | None:
+    return db.scalar(select(CalendarDay).where(CalendarDay.user_id == uid, CalendarDay.date == d))
+
+
+def pending_items(db: Session, uid: int) -> list[Assignment]:
     """보류 목록: 미달성 정규 배정 중 예정/달성 상태의 보충 배정이 없는 것 (오래된 순)."""
     missed = db.scalars(
         select(Assignment)
-        .where(Assignment.kind == "regular", Assignment.status == "missed")
+        .where(Assignment.user_id == uid, Assignment.kind == "regular", Assignment.status == "missed")
         .order_by(Assignment.date, Assignment.id)
     ).all()
     covered = set(
         db.scalars(
             select(Assignment.makeup_of_id).where(
+                Assignment.user_id == uid,
                 Assignment.kind == "makeup",
                 Assignment.status.in_(["scheduled", "done"]),
             )
@@ -191,10 +196,12 @@ def pending_items(db: Session) -> list[Assignment]:
     return [a for a in missed if a.id not in covered and a.task.active]
 
 
-def auto_miss_past(db: Session, today: date) -> int:
+def auto_miss_past(db: Session, uid: int, today: date) -> int:
     """기록 없이 지난 배정은 미달성(보류) 처리."""
     rows = db.scalars(
-        select(Assignment).where(Assignment.status == "scheduled", Assignment.date < today)
+        select(Assignment).where(
+            Assignment.user_id == uid, Assignment.status == "scheduled", Assignment.date < today
+        )
     ).all()
     now = clock.now()
     for a in rows:
@@ -204,7 +211,7 @@ def auto_miss_past(db: Session, today: date) -> int:
     return len(rows)
 
 
-def generate_week(db: Session, week_start: date, today: date) -> Week:
+def generate_week(db: Session, uid: int, week_start: date, today: date) -> Week:
     """week_start 주의 배정을 생성한다.
 
     오늘 이전 날짜와 이미 기록된 배정은 그대로 두고,
@@ -213,11 +220,10 @@ def generate_week(db: Session, week_start: date, today: date) -> Week:
     week_end = week_start + timedelta(days=6)
     from_date = max(week_start, today)
 
-    # 오늘 이후의 예정 배정 삭제 (토큰은 assignment 삭제 시 함께 제거)
-    from ..models import ActionToken
-
+    # 오늘 이후의 예정 배정 삭제 (토큰은 FK CASCADE 와 별개로 명시적으로 지운다)
     stale = db.scalars(
         select(Assignment).where(
+            Assignment.user_id == uid,
             Assignment.week_start == week_start,
             Assignment.date >= from_date,
             Assignment.status == "scheduled",
@@ -231,10 +237,14 @@ def generate_week(db: Session, week_start: date, today: date) -> Week:
             db.delete(a)
         db.flush()
 
-    tasks = db.scalars(select(Task).where(Task.active.is_(True)).order_by(Task.id)).all()
+    tasks = db.scalars(
+        select(Task).where(Task.user_id == uid, Task.active.is_(True)).order_by(Task.id)
+    ).all()
     task_infos = [TaskInfo(t.id, t.duration_min, t.weekly_count, t.subject) for t in tasks]
 
-    kept = db.scalars(select(Assignment).where(Assignment.week_start == week_start)).all()
+    kept = db.scalars(
+        select(Assignment).where(Assignment.user_id == uid, Assignment.week_start == week_start)
+    ).all()
     used_counts: dict[int, int] = {}
     for a in kept:
         if a.kind == "regular":
@@ -243,7 +253,9 @@ def generate_week(db: Session, week_start: date, today: date) -> Week:
     cal_map = {
         c.date: c
         for c in db.scalars(
-            select(CalendarDay).where(CalendarDay.date >= from_date, CalendarDay.date <= week_end)
+            select(CalendarDay).where(
+                CalendarDay.user_id == uid, CalendarDay.date >= from_date, CalendarDay.date <= week_end
+            )
         )
     }
     days: list[DaySlot] = []
@@ -264,12 +276,16 @@ def generate_week(db: Session, week_start: date, today: date) -> Week:
         d += timedelta(days=1)
 
     prev_ids = set(
-        db.scalars(select(Assignment.task_id).where(Assignment.date == from_date - timedelta(days=1)))
+        db.scalars(
+            select(Assignment.task_id).where(
+                Assignment.user_id == uid, Assignment.date == from_date - timedelta(days=1)
+            )
+        )
     )
     # 보류 과제는 '이번 주' 주말에만 배정한다. 미래 주를 미리 만들 때 보류를 가져가 버리면
-    # 이번 주 오프/일요일에 보충할 기회가 사라지기 때문. 미래 주는 그 주 주말 메일 직전에 재계산된다.
+    # 이번 주 오프/일요일에 보충할 기회가 사라지기 때문. 미래 주는 그 주 주말 알림 직전에 재계산된다.
     pend = (
-        [PendingItem(a.id, a.task_id, a.task.duration_min) for a in pending_items(db)]
+        [PendingItem(a.id, a.task_id, a.task.duration_min) for a in pending_items(db, uid)]
         if week_start <= week_start_of(today)
         else []
     )
@@ -281,6 +297,7 @@ def generate_week(db: Session, week_start: date, today: date) -> Week:
         for pos, p in enumerate(placements, start=base_pos):
             db.add(
                 Assignment(
+                    user_id=uid,
                     week_start=week_start,
                     date=day_date,
                     task_id=p.task_id,
@@ -293,9 +310,9 @@ def generate_week(db: Session, week_start: date, today: date) -> Week:
     names = {t.id: t.name for t in tasks}
     warnings = [f"{names[tid]}: 이번 주 {n}회 미배정 (공부 가능 시간 부족)" for tid, n in remaining.items() if n > 0]
 
-    week = db.scalar(select(Week).where(Week.start_date == week_start))
+    week = get_week(db, uid, week_start)
     if week is None:
-        week = Week(start_date=week_start, generated_at=clock.now())
+        week = Week(user_id=uid, start_date=week_start, generated_at=clock.now())
         db.add(week)
     week.generated_at = clock.now()
     week.warnings = "\n".join(warnings)
@@ -303,7 +320,11 @@ def generate_week(db: Session, week_start: date, today: date) -> Week:
     return week
 
 
-def ensure_week(db: Session, d: date, today: date) -> None:
+def get_week(db: Session, uid: int, week_start: date) -> Week | None:
+    return db.scalar(select(Week).where(Week.user_id == uid, Week.start_date == week_start))
+
+
+def ensure_week(db: Session, uid: int, d: date, today: date) -> None:
     ws = week_start_of(d)
-    if db.scalar(select(Week).where(Week.start_date == ws)) is None:
-        generate_week(db, ws, today)
+    if get_week(db, uid, ws) is None:
+        generate_week(db, uid, ws, today)

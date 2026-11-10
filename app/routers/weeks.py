@@ -7,8 +7,16 @@ from sqlalchemy.orm import Session
 
 from .. import clock
 from ..db import get_db
-from ..models import Assignment, CalendarDay, MailLog, Week
-from ..services.allocator import day_capacity, generate_week, is_weekend_day, pending_items, week_start_of
+from ..deps import current_user, owned
+from ..models import Assignment, CalendarDay, NotifyLog, User
+from ..services.allocator import (
+    day_capacity,
+    generate_week,
+    get_week,
+    is_weekend_day,
+    pending_items,
+    week_start_of,
+)
 from ..config import settings
 from ..services.daily import send_test_mail
 from ..services.mailer import latest_outbox_file, read_outbox
@@ -19,14 +27,27 @@ router = APIRouter()
 
 
 @router.get("/")
-def week_page(request: Request, start: str | None = None, msg: str = "", db: Session = Depends(get_db)):
+def week_page(
+    request: Request,
+    start: str | None = None,
+    msg: str = "",
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
     today = clock.today()
     ws = week_start_of(date.fromisoformat(start)) if start else week_start_of(today)
-    week = db.scalar(select(Week).where(Week.start_date == ws))
+    week = get_week(db, user.id, ws)
     assignments = db.scalars(
-        select(Assignment).where(Assignment.week_start == ws).order_by(Assignment.date, Assignment.position)
+        select(Assignment)
+        .where(Assignment.user_id == user.id, Assignment.week_start == ws)
+        .order_by(Assignment.date, Assignment.position)
     ).all()
-    cal = {c.date: c for c in db.scalars(select(CalendarDay).where(CalendarDay.date.between(ws, ws + timedelta(6))))}
+    cal = {
+        c.date: c
+        for c in db.scalars(
+            select(CalendarDay).where(CalendarDay.user_id == user.id, CalendarDay.date.between(ws, ws + timedelta(6)))
+        )
+    }
     days = []
     for i in range(7):
         d = ws + timedelta(days=i)
@@ -43,7 +64,9 @@ def week_page(request: Request, start: str | None = None, msg: str = "", db: Ses
                 "is_today": d == today,
             }
         )
-    logs = db.scalars(select(MailLog).order_by(MailLog.date.desc()).limit(5)).all()
+    logs = db.scalars(
+        select(NotifyLog).where(NotifyLog.user_id == user.id).order_by(NotifyLog.date.desc(), NotifyLog.id).limit(6)
+    ).all()
     return templates.TemplateResponse(
         request,
         "week.html",
@@ -51,46 +74,54 @@ def week_page(request: Request, start: str | None = None, msg: str = "", db: Ses
             "ws": ws,
             "week": week,
             "days": days,
-            "progress": week_progress(db, ws),
-            "pending": pending_items(db),
+            "progress": week_progress(db, user.id, ws),
+            "pending": pending_items(db, user.id),
             "prev": ws - timedelta(days=7),
             "next": ws + timedelta(days=7),
             "today": today,
             "msg": msg,
             "logs": logs,
-            "preview": latest_outbox_file() if settings.mail_backend == "console" else None,
+            "preview": latest_outbox_file(user.id) if settings.mail_backend == "console" else None,
         },
     )
 
 
 @router.post("/weeks/generate")
-def generate(start: str = Form(...), db: Session = Depends(get_db)):
+def generate(start: str = Form(...), db: Session = Depends(get_db), user: User = Depends(current_user)):
     ws = week_start_of(date.fromisoformat(start))
-    generate_week(db, ws, clock.today())
+    generate_week(db, user.id, ws, clock.today())
     return RedirectResponse(f"/?start={ws}&msg=배정을 생성했습니다.", status_code=303)
 
 
 @router.post("/mail/test")
-def test_mail(day: str = Form(...), db: Session = Depends(get_db)):
+def test_mail(day: str = Form(...), db: Session = Depends(get_db), user: User = Depends(current_user)):
     d = date.fromisoformat(day)
     try:
-        result = send_test_mail(db, d)
+        result = send_test_mail(db, user, d)
     except Exception as e:  # noqa: BLE001
         result = f"발송 실패: {e}"
     return RedirectResponse(f"/?start={week_start_of(d)}&msg=테스트 메일 — {result}", status_code=303)
 
 
 @router.post("/assignments/{aid}/status")
-def change_status(aid: int, status: str = Form(...), db: Session = Depends(get_db)):
-    a = db.get(Assignment, aid)
-    if a and status in ("scheduled", "done", "missed"):
+def change_status(
+    aid: int,
+    status: str = Form(...),
+    back: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    a = owned(db, Assignment, aid, user)
+    if status in ("scheduled", "done", "missed"):
         set_status(db, a, status)
-    return RedirectResponse(f"/?start={a.week_start if a else ''}", status_code=303)
+    # back 은 같은 사이트 안의 경로만 허용
+    target = back if back.startswith("/") and not back.startswith("//") else f"/?start={a.week_start}"
+    return RedirectResponse(target, status_code=303)
 
 
 @router.get("/mail/preview/{name}")
-def mail_preview(name: str):
-    html = read_outbox(name)
+def mail_preview(name: str, user: User = Depends(current_user)):
+    html = read_outbox(name, user.id)
     if html is None:
         return HTMLResponse("미리보기 파일이 없습니다.", status_code=404)
     return HTMLResponse(html)

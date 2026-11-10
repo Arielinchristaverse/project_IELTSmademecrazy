@@ -1,10 +1,10 @@
-"""초기 데이터: 근무 유형 기본값, 설정 행, 영어 문장 50개 (IELTS 라이팅/스피킹에 쓸 만한 직접 작성 문장)."""
+"""사용자별 초기 데이터: 근무 유형 기본값, 영어 문장 50개 (IELTS 라이팅/스피킹에 쓸 만한 직접 작성 문장)."""
 from datetime import time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import SHIFT_LABELS, AppSettings, Sentence, ShiftType
+from .models import SHIFT_LABELS, Sentence, ShiftType, User
 
 DEFAULT_SHIFTS = {
     "DAY": (60, time(5, 30)),
@@ -67,13 +67,17 @@ SENTENCES = [
 ]
 
 
-def seed(db: Session) -> None:
+def seed_user(db: Session, user: User) -> None:
+    """새 사용자에게 기본 근무 유형과 영어 문장 50개를 만들어 준다 (이미 있으면 건너뜀)."""
+    have = set(db.scalars(select(ShiftType.code).where(ShiftType.user_id == user.id)))
     for code, (minutes, send_time) in DEFAULT_SHIFTS.items():
-        if db.get(ShiftType, code) is None:
-            db.add(ShiftType(code=code, label=SHIFT_LABELS[code], study_minutes=minutes, send_time=send_time))
-    if db.get(AppSettings, 1) is None:
-        db.add(AppSettings(id=1, recipient_email="", sentence_cursor=0))
-    if db.scalar(select(Sentence.id).limit(1)) is None:
+        if code not in have:
+            db.add(
+                ShiftType(
+                    user_id=user.id, code=code, label=SHIFT_LABELS[code], study_minutes=minutes, send_time=send_time
+                )
+            )
+    if db.scalar(select(Sentence.id).where(Sentence.user_id == user.id).limit(1)) is None:
         for i, (text, meaning) in enumerate(SENTENCES):
-            db.add(Sentence(text=text, meaning=meaning, position=i))
+            db.add(Sentence(user_id=user.id, text=text, meaning=meaning, position=i))
     db.commit()

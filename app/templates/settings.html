@@ -14,8 +14,17 @@
     </tr>
     {% endfor %}
   </table>
-  <h2>받는 사람</h2>
-  <input type="email" name="recipient_email" value="{{ app.recipient_email }}" placeholder="비워두면 GMAIL_ADDRESS 로 발송" style="width:320px">
+  <h2>알림 받는 방법</h2>
+  <div class="row">
+    {% for value, label in [('push','웹 푸시'),('email','메일'),('both','둘 다')] %}
+      {% set needs = ['push','email'] if value == 'both' else [value] %}
+      {% set ok = needs | select('in', channels_enabled) | list | length == needs | length %}
+      <label class="{{ '' if ok else 'muted' }}"><input type="radio" name="notify_channel" value="{{ value }}"
+        {{ 'checked' if user.notify_channel == value }} {{ '' if ok else 'disabled' }}> {{ label }}</label>
+    {% endfor %}
+  </div>
+  <h2>메일 받는 주소</h2>
+  <input type="email" name="notify_email" value="{{ user.notify_email }}" placeholder="비워두면 {{ user.email }}" style="width:320px">
   <p class="muted" style="font-size:13px">오프인 날과 일요일은 '주말'로 보고, 보류 과제를 먼저 배정합니다.</p>
   <button style="margin-top:16px">저장</button>
 </form>
@@ -35,7 +44,9 @@
 {% endif %}
 <p class="muted" style="font-size:13px">이 값들은 화면이 아니라 환경 변수(Codespaces Secrets, .env)로 설정합니다. 바꾼 뒤에는 서버를 다시 시작해야 반영됩니다.</p>
 
-<h2>데이터 백업</h2>
+{% if user.is_admin %}
+<h2>데이터 백업 <span class="tag">관리자</span></h2>
 <p class="muted" style="font-size:13px">현재 모든 데이터(설정, 달력, 과제, 배정 기록)를 파일 하나로 내려받습니다. 큰 업데이트 전에 받아 두세요.</p>
 <a class="btn ghost" href="/admin/backup">DB 백업 다운로드</a>
+{% endif %}
 {% endblock %}

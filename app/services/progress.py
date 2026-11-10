@@ -22,13 +22,21 @@ def set_status(db: Session, a: Assignment, status: str) -> None:
     db.commit()
 
 
-def week_progress(db: Session, week_start: date) -> int:
+def week_progress(db: Session, uid: int, week_start: date) -> int:
     """이번 주 달성 횟수 / 이번 주 목표 횟수 (%)."""
-    target = db.scalar(select(func.coalesce(func.sum(Task.weekly_count), 0)).where(Task.active.is_(True))) or 0
+    target = (
+        db.scalar(
+            select(func.coalesce(func.sum(Task.weekly_count), 0)).where(
+                Task.user_id == uid, Task.active.is_(True)
+            )
+        )
+        or 0
+    )
     if target == 0:
         return 0
     done = db.scalar(
         select(func.count(Assignment.id)).where(
+            Assignment.user_id == uid,
             Assignment.week_start == week_start,
             Assignment.kind == "regular",
             Assignment.status == "done",

@@ -4,7 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from .config import settings
 from .db import SessionLocal
-from .services.daily import send_daily_if_due
+from .services.daily import run_due
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -13,9 +13,8 @@ def tick() -> None:
     now = clock.now()
     db = SessionLocal()
     try:
-        result = send_daily_if_due(db, now)
-        if result:
-            print(f"[scheduler] {now:%Y-%m-%d %H:%M} {result}")
+        for line in run_due(db, now):
+            print(f"[scheduler] {now:%Y-%m-%d %H:%M} {line}")
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] error: {e}")
     finally:

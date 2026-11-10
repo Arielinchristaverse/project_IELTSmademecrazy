@@ -74,11 +74,11 @@
 </table>
 {% else %}<p class="muted">보류된 과제가 없습니다.</p>{% endif %}
 
-<h2>최근 발송 기록</h2>
+<h2>최근 알림 기록</h2>
 {% if logs %}
 <table class="list">
-  <tr><th>날짜</th><th>상태</th><th>시각</th><th>오류</th></tr>
-  {% for l in logs %}<tr><td>{{ l.date }}</td><td>{{ l.status }}</td><td>{{ l.sent_at.strftime('%H:%M') }}</td><td class="muted">{{ l.error }}</td></tr>{% endfor %}
+  <tr><th>날짜</th><th>수단</th><th>상태</th><th>시각</th><th>오류</th></tr>
+  {% for l in logs %}<tr><td>{{ l.date }}</td><td>{{ '푸시' if l.channel == 'push' else '메일' }}</td><td>{{ l.status }}</td><td>{{ l.sent_at.strftime('%H:%M') }}</td><td class="muted">{{ l.error }}</td></tr>{% endfor %}
 </table>
 {% else %}<p class="muted">아직 자동 발송 기록이 없습니다.</p>{% endif %}
 {% endblock %}
