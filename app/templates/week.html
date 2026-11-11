@@ -18,6 +18,7 @@
   <div>
     <div class="muted" style="font-size:13px">이번 주 진척도</div>
     <div class="stat">{{ progress }}<span class="pct">%</span></div>
+    {% include "partials/meter.html" %}
   </div>
   <div class="row" style="align-items:flex-start">
     <form method="post" action="/weeks/generate">

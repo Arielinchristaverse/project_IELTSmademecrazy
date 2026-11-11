@@ -112,3 +112,25 @@ def test_today_empty_states(db, user, on_day):
 def test_today_requires_login():
     with TestClient(app) as c:
         assert c.get("/today", follow_redirects=False).headers["location"] == "/login"
+
+
+def test_progress_bar_on_today_and_mail(db, user, on_day):
+    setup(db, user)
+    with TestClient(app) as c:
+        login(c)
+        html = c.get("/today").text
+        assert 'role="progressbar"' in html and 'aria-valuenow="0"' in html and "width: 0%" in html
+        a = db.scalar(select(Assignment).where(Assignment.user_id == user.id, Assignment.date == MON))
+        c.post(f"/assignments/{a.id}/status", data={"status": "done", "back": "/today"})
+        html = c.get("/today").text
+        p = progress_of(html)
+        assert p > 0 and f"width: {p}%" in html and f'aria-valuenow="{p}"' in html
+    send_test_mail(db, user, MON)
+    mail = open(os.path.join("outbox", sorted(os.listdir("outbox"))[-1]), encoding="utf-8").read()
+    assert f'width="{p}%"' in mail and "#F59E0B" in mail
+
+
+def test_privacy_page_has_operator_and_contact():
+    with TestClient(app) as c:
+        html = c.get("/privacy").text
+    assert "운영자: afterwork" in html and "arielinchristaverse@gmail.com" in html

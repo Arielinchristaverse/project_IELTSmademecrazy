@@ -146,6 +146,10 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .stat { font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; font-family: var(--font-serif); font-size: 56px; font-weight: 600; line-height: 1; color: var(--text-primary); letter-spacing: -0.01em; }
 .stat .pct { font-size: 0.5em; margin-left: 2px; color: var(--accent-ink); }
 
+/* 진척도 막대: 얇은 격자 선 위에 앰버 채움 */
+.meter { height: 4px; background: var(--border-grid); border-radius: 2px; overflow: hidden; margin-top: 10px; }
+.meter > span { display: block; height: 100%; background: var(--accent-focus); border-radius: 2px; transition: width 0.4s ease; }
+
 /* ---------------------------------------------------------------- 주간 보기 */
 .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--text-primary); border-left: 1px solid var(--border-grid); }
 .day { background: var(--bg-surface); border-right: 1px solid var(--border-grid); border-bottom: 1px solid var(--border-grid); padding: 12px; min-height: 170px; }
@@ -234,7 +238,8 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .card-side .state { display: block; color: var(--text-secondary); font-size: 12px; }
 .card.done .card-side .state { color: var(--accent-ink); font-weight: 600; }
 .empty { padding: 20px 0; color: var(--text-secondary); border-bottom: 1px solid var(--border-grid); }
-.progress-block { display: flex; justify-content: space-between; align-items: flex-end; padding: 28px 0 20px; border-bottom: 1px solid var(--border-grid); }
+.progress-block { padding: 28px 0 22px; border-bottom: 1px solid var(--border-grid); }
+.progress-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
 .progress-block .label { font-size: 13px; color: var(--text-secondary); }
 .plain { list-style: none; padding: 0; margin: 0; font-size: 14px; }
 .plain li { padding: 8px 0; border-bottom: 1px solid var(--border-grid); display: flex; justify-content: space-between; gap: 12px; }

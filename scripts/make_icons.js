@@ -1,10 +1,11 @@
 // 아이콘 PNG 생성: node scripts/make_icons.js  (Playwright + Chromium 필요, 결과물은 저장소에 포함되어 있음)
-// 원본: app/static/icons/icon.svg (afterwork 임시 모노그램). 글꼴은 저장소의 Cormorant Garamond 파일을 쓴다.
+// 원본: app/static/icons/icon.svg (afterwork 로고 모노그램). 글꼴은 저장소의 Cormorant Garamond 파일을 쓴다.
 // - icon-180.png : iOS apple-touch-icon (iOS가 모서리를 알아서 둥글게 깎음)
 // - icon-192.png / icon-512.png : manifest 일반 아이콘
 // - icon-maskable-512.png : 안드로이드 maskable (그림을 안전 영역 80% 안으로 축소)
 // - badge-72.png : 안드로이드 알림 상태바용 단색 배지
 // - favicon-32.png
+// - logo-1024.png : 로고 이미지 (SNS 프로필·문서용 고해상도)
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -20,6 +21,7 @@ const variants = [
   ['icon-192.png', 192, svg],
   ['icon-512.png', 512, svg],
   ['favicon-32.png', 32, svg],
+  ['logo-1024.png', 1024, svg],  // 로고 원본 이미지 (SNS·문서용)
   ['icon-maskable-512.png', 512,
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#1E232A"/>` +
     `<g transform="translate(51.2 51.2) scale(0.8)">${inner.replace('<rect width="512" height="512" fill="#1E232A"/>', '')}</g></svg>`],

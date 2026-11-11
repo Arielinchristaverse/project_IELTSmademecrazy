@@ -1,7 +1,7 @@
 # Render Blueprint: 대시보드에서 New → Blueprint 로 이 저장소를 연결하면 아래 설정대로 만들어진다.
 services:
   - type: web
-    name: study-shift
+    name: afterwork
     runtime: python
     plan: starter            # 유료(상시 실행 + 메일 발송 포트 허용 + 디스크 사용 가능)
     region: singapore        # 한국과 가장 가까운 지역
@@ -9,7 +9,7 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     disk:
-      name: study-data
+      name: afterwork-data
       mountPath: /var/data   # SQLite 파일 저장 위치 (재배포해도 유지)
       sizeGB: 1
     envVars:

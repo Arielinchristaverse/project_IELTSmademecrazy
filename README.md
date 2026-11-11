@@ -39,7 +39,7 @@ Starter 요금제(약 $7/월) + 디스크 1GB(약 $0.25/월). 무료 요금제�
 1. https://render.com → GitHub로 가입, 결제 수단 등록
 2. **New + → Blueprint** → 이 저장소 선택
 3. 입력 칸에 `APP_PASSWORD`(새 로그인 비밀번호), `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` 입력 → **Apply**
-4. 배포가 끝나면 `https://study-shift-xxxx.onrender.com` 같은 주소로 접속 (메일 버튼 주소는 자동 설정)
+4. 배포가 끝나면 `https://afterwork.onrender.com` (이름이 이미 쓰이면 `afterwork-xxxx.onrender.com`) 같은 주소로 접속 (메일 버튼 주소는 자동 설정)
 
 데이터는 디스크(`/var/data/app.db`)에 저장되어 재배포해도 유지됩니다.
 공개 서버에서는 기본 비밀번호 `change-me`로는 로그인할 수 없습니다.

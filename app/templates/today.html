@@ -55,8 +55,11 @@
   {% endif %}
 
   <div class="progress-block">
-    <span class="label">이번 주 진척도</span>
-    <span class="stat">{{ progress }}<span class="pct">%</span></span>
+    <div class="progress-top">
+      <span class="label">이번 주 진척도</span>
+      <span class="stat">{{ progress }}<span class="pct">%</span></span>
+    </div>
+    {% include "partials/meter.html" %}
   </div>
 
   <h2>주말 보충 리스트</h2>

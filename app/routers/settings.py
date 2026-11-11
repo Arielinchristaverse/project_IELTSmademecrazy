@@ -108,6 +108,6 @@ def download_backup(_: User = Depends(admin_user)):
     return FileResponse(
         tmp,
         media_type="application/octet-stream",
-        filename=f"study-shift-backup-{clock.now():%Y%m%d-%H%M%S}.db",
+        filename=f"afterwork-backup-{clock.now():%Y%m%d-%H%M%S}.db",
         background=BackgroundTask(os.remove, tmp),
     )

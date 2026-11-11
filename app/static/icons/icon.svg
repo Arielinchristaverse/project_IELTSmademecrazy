@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- afterwork 임시 모노그램: Solid Carbon 바탕 + Warm Ivory 'a' (Cormorant Garamond) + Amber 마침표 -->
+  <!-- afterwork 로고 (모노그램): Solid Carbon 바탕 + Warm Ivory 'a' (Cormorant Garamond) + Amber 마침표 -->
   <rect width="512" height="512" fill="#1E232A"/>
   <text x="236" y="340" text-anchor="middle" font-family="Cormorant Garamond" font-weight="600" font-size="340" fill="#F7F6F2">a</text>
   <circle cx="360" cy="322" r="22" fill="#F59E0B"/>

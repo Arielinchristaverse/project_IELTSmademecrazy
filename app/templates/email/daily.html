@@ -75,6 +75,14 @@
                       <td align="right" style="font-family:{{ SERIF }};font-variant-numeric:lining-nums;font-size:44px;line-height:44px;font-weight:600;color:#1E232A;">{{ progress }}<span style="font-size:22px;color:#B45309;">%</span></td>
                     </tr>
                   </table>
+                  {#- 진척도 막대: Gmail 은 CSS width 애니메이션·div 막대를 잘 못 다뤄서, 너비를 나눈 표 두 칸으로 그린다 -#}
+                  {%- set pct = [[progress, 0]|max, 100]|min -%}
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;">
+                    <tr>
+                      {% if pct > 0 %}<td width="{{ pct }}%" height="4" style="height:4px;line-height:4px;font-size:0;background-color:#F59E0B;">&nbsp;</td>{% endif %}
+                      {% if pct < 100 %}<td height="4" style="height:4px;line-height:4px;font-size:0;background-color:#E5E7EB;">&nbsp;</td>{% endif %}
+                    </tr>
+                  </table>
                 </td>
               </tr>
 
