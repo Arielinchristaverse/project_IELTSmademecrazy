@@ -3,7 +3,7 @@
   function check() {
     fetch("/auth/handoff", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
-      .then(function (d) { if (d.ok) location.replace("/"); })
+      .then(function (d) { if (d.ok) location.replace("/today"); })
       .catch(function () {});
   }
   document.addEventListener("visibilitychange", function () {

@@ -76,7 +76,7 @@ def _login_page(request: Request, error: str | None = None, status: int = 200, i
 @router.get("/login")
 def login_page(request: Request, deleted: int = 0):
     if request.session.get("uid"):
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/today", status_code=303)
     return _login_page(request, info="계정과 모든 데이터를 삭제했습니다." if deleted else None)
 
 
@@ -135,7 +135,7 @@ async def google_callback(
         lr.consumed_at = clock.now()
         db.commit()
         _login(request, user.id)
-        resp = RedirectResponse("/", status_code=303)
+        resp = RedirectResponse("/today", status_code=303)
         resp.delete_cookie(HANDOFF_COOKIE)
         return resp
 
@@ -161,7 +161,7 @@ def handoff(request: Request, redirect: int = 0, db: Session = Depends(get_db)):
         db.commit()
         _login(request, lr.user_id)
     if redirect:
-        resp = RedirectResponse("/" if ok else "/login", status_code=303)
+        resp = RedirectResponse("/today" if ok else "/login", status_code=303)
     else:
         resp = JSONResponse({"ok": ok})
     if ok:
@@ -178,7 +178,7 @@ def dev_login(request: Request, email: str = Form(...), db: Session = Depends(ge
         return _login_page(request, "아직 초대되지 않은 계정입니다.", 403)
     user = get_or_create_user(db, email)
     _login(request, user.id)
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/today", status_code=303)
 
 
 @router.post("/logout")

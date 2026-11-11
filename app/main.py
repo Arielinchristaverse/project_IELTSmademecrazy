@@ -21,6 +21,7 @@ from .routers import (
     sentences,
     settings as settings_router,
     tasks,
+    today,
     weeks,
 )
 
@@ -68,6 +69,7 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
 app.include_router(auth.router)
+app.include_router(today.router)
 app.include_router(weeks.router)
 app.include_router(settings_router.router)
 app.include_router(calendar.router)

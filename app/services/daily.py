@@ -43,16 +43,13 @@ def _greeting(d: date, cal: CalendarDay | None) -> str:
     return base + " 오늘의 공부입니다."
 
 
-def _sentence_for(db: Session, user: User, advance: bool) -> Sentence | None:
+def _sentence_for(db: Session, user: User) -> Sentence | None:
     sentences = db.scalars(
         select(Sentence).where(Sentence.user_id == user.id).order_by(Sentence.position, Sentence.id)
     ).all()
     if not sentences:
         return None
     s = sentences[user.sentence_cursor % len(sentences)]
-    if advance:
-        user.sentence_cursor += 1
-        db.commit()
     return s
 
 
@@ -69,17 +66,22 @@ def prepare_day(db: Session, user: User, d: date) -> list[Assignment]:
     주말(오프/일요일)이면 보충 재배정. 재배정은 하루 1회만 (화면을 열 때마다 바뀌지 않도록)."""
     auto_miss_past(db, user.id, d)
     ensure_week(db, user.id, d, d)
-    if user.last_prepared_date != d:
+    last = user.last_prepared_date
+    if last != d:
         cal = get_calendar_day(db, user.id, d)
         if is_weekend_day(d, cal):
             generate_week(db, user.id, week_start_of(d), d)
-        user.last_prepared_date = d
+        # 영어 문장은 날짜가 넘어갈 때 한 번만 다음 문장으로 → 그날의 메일·푸시·오늘 화면이 같은 문장
+        if last is not None and d > last:
+            user.sentence_cursor += 1
+        if last is None or d > last:
+            user.last_prepared_date = d
         db.commit()
     return day_assignments(db, user.id, d)
 
 
 def build_today_context(
-    db: Session, user: User, d: date, assignments: list[Assignment] | None = None, advance_sentence: bool = False
+    db: Session, user: User, d: date, assignments: list[Assignment] | None = None
 ) -> dict:
     """오늘 화면과 메일이 공통으로 쓰는 내용."""
     if assignments is None:
@@ -93,11 +95,11 @@ def build_today_context(
         "open_count": sum(1 for a in assignments if a.status == "scheduled"),
         "progress": week_progress(db, user.id, week_start_of(d)),
         "pending": pending_items(db, user.id),
-        "sentence": _sentence_for(db, user, advance_sentence),
+        "sentence": _sentence_for(db, user),
     }
 
 
-def build_mail(db: Session, user: User, d: date, assignments: list[Assignment], advance_sentence: bool):
+def build_mail(db: Session, user: User, d: date, assignments: list[Assignment]):
     expires = clock.now() + timedelta(days=settings.token_valid_days)
     items = []
     for a in assignments:
@@ -112,7 +114,7 @@ def build_mail(db: Session, user: User, d: date, assignments: list[Assignment], 
         items.append({"a": a, "links": links})
     db.commit()
 
-    ctx = build_today_context(db, user, d, assignments, advance_sentence)
+    ctx = build_today_context(db, user, d, assignments)
     ctx.update(items=items, base_url=settings.base_url)
     html = _env.get_template("daily.html").render(**ctx)
     text_lines = [ctx["greeting"], ""]
@@ -143,7 +145,7 @@ class ChannelResult:
 
 
 def _send_email(db: Session, user: User, d: date, assignments: list[Assignment], test: bool) -> ChannelResult:
-    subject, html, text = build_mail(db, user, d, assignments, advance_sentence=False)
+    subject, html, text = build_mail(db, user, d, assignments)
     return ChannelResult(True, send_mail(user.mail_to, ("[테스트] " if test else "") + subject, html, text, owner_id=user.id))
 
 
@@ -219,7 +221,6 @@ def notify_due(db: Session, user: User, now: datetime) -> list[str]:
     assignments = prepare_day(db, user, d)
     if not assignments:
         return []
-    first_today = not logs
     results = []
     for ch in due:
         log = logs.get(ch)
@@ -237,9 +238,6 @@ def notify_due(db: Session, user: User, now: datetime) -> list[str]:
             log.status, log.error = "failed", str(e)
             results.append(f"{ch}: 발송 실패: {e}")
         db.commit()
-    # 영어 문장은 하루에 한 번만 다음 문장으로 넘긴다 (채널이 여러 개여도)
-    if first_today:
-        _sentence_for(db, user, advance=True)
     return results
 
 

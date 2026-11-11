@@ -3,6 +3,11 @@
 <h1>설정</h1>
 <p class="sub">근무 유형별 하루 공부 가능 시간과 알림 시각, 알림 받는 방법을 정합니다.</p>
 {% if saved %}<div class="notice">저장했습니다.</div>{% endif %}
+<div class="quick-links">
+  <a href="/tasks">공부 과제 관리 →</a>
+  <a href="/sentences">영어 문장 →</a>
+  <a href="/account">계정 · 로그아웃 →</a>
+</div>
 <form method="post" action="/settings">
   {% include "partials/shift_table.html" %}
   <h2>알림 받는 방법</h2>

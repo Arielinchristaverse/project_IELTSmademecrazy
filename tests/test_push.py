@@ -186,16 +186,21 @@ def test_each_user_gets_push_at_own_time(db, user, pusher):
     assert sent_to() == ["a", "b"]
 
 
-def test_both_channels_and_sentence_advances_once(db, user, pusher):
+def test_both_channels_and_sentence_advances_once_per_day(db, user, pusher):
     setup_days(db, user, time(6, 0))
     user.notify_channel = "both"
     db.commit()
     add_sub(db, user, "https://web.push.apple.com/me")
-    before = user.sentence_cursor
     out = notify_due(db, user, datetime.combine(MON, time(6, 0)))
     assert sorted(o.split(":")[0] for o in out) == ["email", "push"]
     db.refresh(user)
-    assert user.sentence_cursor == before + 1
+    day1 = user.sentence_cursor
+    notify_due(db, user, datetime.combine(MON, time(9, 0)))  # 같은 날 다시 호출해도 그대로
+    db.refresh(user)
+    assert user.sentence_cursor == day1
+    notify_due(db, user, datetime.combine(MON + timedelta(days=1), time(6, 0)))
+    db.refresh(user)
+    assert user.sentence_cursor == day1 + 1  # 다음 날 한 번만 넘어감
 
 
 def test_test_push_endpoint(db, user, pusher):

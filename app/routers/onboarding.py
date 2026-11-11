@@ -32,7 +32,7 @@ def _advance(db: Session, user: User, to: int) -> None:
 @router.get("")
 def onboarding_home(user: User = Depends(current_user)):
     if user.onboarding_step >= ONBOARDING_DONE:
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/today", status_code=303)
     return RedirectResponse(f"/onboarding/{STEPS[user.onboarding_step]}", status_code=303)
 
 
@@ -97,4 +97,4 @@ def finish(db: Session = Depends(get_db), user: User = Depends(current_user)):
     _advance(db, user, ONBOARDING_DONE)
     today = clock.today()
     generate_week(db, user.id, week_start_of(today), today)
-    return RedirectResponse("/?msg=준비가 끝났어요. 이번 주 배정을 만들었습니다.", status_code=303)
+    return RedirectResponse("/today", status_code=303)

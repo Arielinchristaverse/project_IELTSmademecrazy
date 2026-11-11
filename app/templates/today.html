@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}오늘 · Study Shift{% endblock %}
+{% block content %}
+<section class="today">
+  <p class="eyebrow">TODAY'S STUDY</p>
+  <h1 class="greeting">{{ greeting }}</h1>
+
+  <div class="today-head">
+    <span>오늘의 과제{% if assignments %} · 총 {{ total_min }}분{% endif %}</span>
+    {% if assignments %}<span class="muted">{{ done_count }}/{{ assignments|length }} 달성</span>{% endif %}
+  </div>
+
+  {% if assignments %}
+  <ul class="cards">
+    {% for a in assignments %}
+    <li class="card {{ a.status }}">
+      <div class="card-main">
+        <div class="card-title">{% if a.kind == 'makeup' %}<span class="tag navy">보충</span> {% endif %}{{ a.task.name }}</div>
+        <div class="card-sub">{{ a.task.subject }}{% if a.task.subject %} · {% endif %}{{ a.task.duration_min }}분</div>
+      </div>
+      {% if a.status == 'scheduled' %}
+      <div class="card-actions">
+        <form method="post" action="/assignments/{{ a.id }}/status">
+          <input type="hidden" name="status" value="done"><input type="hidden" name="back" value="/today">
+          <button class="btn-done">달성</button>
+        </form>
+        <form method="post" action="/assignments/{{ a.id }}/status">
+          <input type="hidden" name="status" value="missed"><input type="hidden" name="back" value="/today">
+          <button class="btn-missed">미달성</button>
+        </form>
+      </div>
+      {% else %}
+      <div class="card-state">
+        <span class="state-label">{{ '달성' if a.status == 'done' else '미달성 · 주말 보충' }}</span>
+        <form method="post" action="/assignments/{{ a.id }}/status">
+          <input type="hidden" name="status" value="scheduled"><input type="hidden" name="back" value="/today">
+          <button class="link">되돌리기</button>
+        </form>
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    {% if excluded %}오늘은 공부 제외일로 표시되어 있어요. 푹 쉬세요.
+    {% elif no_shift %}오늘 근무가 입력되지 않았어요. <a href="/calendar">근무 달력</a>에서 입력해 주세요.
+    {% elif capacity == 0 %}오늘은 공부 시간이 0분으로 설정되어 있어요.
+    {% else %}오늘 배정된 과제가 없어요.{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="progress-row">
+    <span class="muted">이번 주 진척도</span>
+    <span class="stat">{{ progress }}%</span>
+  </div>
+
+  <h2>주말 보충 리스트</h2>
+  {% if pending %}
+  <ul class="plain">
+    {% for p in pending %}
+    <li>{{ p.task.name }} <span class="muted">({{ p.task.duration_min }}분, {{ p.date.month }}/{{ p.date.day }})</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">보류된 과제가 없습니다.</p>{% endif %}
+
+  {% if sentence %}
+  <blockquote class="sentence">
+    <p>“{{ sentence.text }}”</p>
+    {% if sentence.meaning %}<footer>{{ sentence.meaning }}</footer>{% endif %}
+  </blockquote>
+  {% endif %}
+</section>
+{% endblock %}

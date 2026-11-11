@@ -53,8 +53,8 @@ def test_google_login_same_browser_creates_user_and_goes_to_onboarding(db, googl
     with TestClient(app) as c:
         state = start(c)
         r = c.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False)
-        assert r.status_code == 303 and r.headers["location"] == "/"
-        assert c.get("/", follow_redirects=False).headers["location"] == "/onboarding"
+        assert r.status_code == 303 and r.headers["location"] == "/today"
+        assert c.get("/today", follow_redirects=False).headers["location"] == "/onboarding"
     u = db.scalar(select(User).where(User.email == "new@example.com"))
     assert u.google_sub == "g-1" and u.name == "새 사용자" and not u.is_admin
     # PKCE·nonce 가 DB에 저장된 값으로 검증에 쓰였는지
@@ -154,7 +154,8 @@ def test_onboarding_flow(db):
             follow_redirects=False,
         )
         assert r.headers["location"].startswith("/onboarding/calendar?month=")
-        assert c.post("/onboarding/finish", follow_redirects=False).headers["location"].startswith("/?msg=")
+        assert c.post("/onboarding/finish", follow_redirects=False).headers["location"] == "/today"
+        assert c.get("/today", follow_redirects=False).status_code == 200
         assert c.get("/", follow_redirects=False).status_code == 200
 
     u = db.scalar(select(User).where(User.email == "fresh@example.com"))
