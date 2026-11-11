@@ -1,27 +1,32 @@
 <!doctype html>
-<html lang="ko">
+{% set theme = request.cookies.get('theme') %}
+<html lang="ko"{% if theme in ('light', 'dark') %} data-theme="{{ theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% block title %}Study Shift{% endblock %}</title>
+  <title>{% block title %}afterwork{% endblock %}</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#1f2a44">
+  {% if theme == 'light' %}<meta name="theme-color" content="#FAFAFA">
+  {% elif theme == 'dark' %}<meta name="theme-color" content="#161B22">
+  {% else %}<meta name="theme-color" content="#FAFAFA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161B22" media="(prefers-color-scheme: dark)">{% endif %}
   <!-- iOS 홈 화면 앱 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Study Shift">
+  <meta name="apple-mobile-web-app-title" content="afterwork">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-180.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
   <meta name="format-detection" content="telephone=no">
+  <link rel="preload" href="/static/fonts/cormorant/cormorant-garamond-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
 </head>
 <body>
 {% block header %}
+{% set p = request.url.path %}
 <header><div class="inner">
-  <span class="brand">Study Shift</span>
-  {% set p = request.url.path %}
+  <a class="wordmark" href="/today">afterwork<span class="dot">.</span></a>
   <nav>
     <a href="/today" class="{{ 'on' if p == '/today' }}">오늘</a>
     <a href="/" class="{{ 'on' if p == '/' }}">이번 주</a>
@@ -30,17 +35,21 @@
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">설정</a>
     <a href="/sentences" class="{{ 'on' if p.startswith('/sentences') }}">영어 문장</a>
   </nav>
-  <a href="/account" class="{{ 'on' if p.startswith('/account') }}" style="font-size:14px;color:var(--muted)">계정</a>
+  <a href="/account" class="account-link {{ 'on' if p.startswith('/account') }}">계정</a>
 </div></header>
 {% endblock %}
 <main>{% block content %}{% endblock %}</main>
 {% if self.header() | trim %}
+{% set p = request.url.path %}
 <nav class="tabbar" aria-label="주요 메뉴">
-  {% set p = request.url.path %}
-  <a href="/today" class="{{ 'on' if p == '/today' }}"><span class="ti">☀︎</span>오늘</a>
-  <a href="/" class="{{ 'on' if p == '/' }}"><span class="ti">▦</span>이번 주</a>
-  <a href="/calendar" class="{{ 'on' if p.startswith('/calendar') }}"><span class="ti">◫</span>달력</a>
-  <a href="/settings" class="{{ 'on' if p.startswith(('/settings','/tasks','/sentences','/account')) }}"><span class="ti">⚙︎</span>설정</a>
+  <a href="/today" class="{{ 'on' if p == '/today' }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>오늘</a>
+  <a href="/" class="{{ 'on' if p == '/' }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>이번 주</a>
+  <a href="/calendar" class="{{ 'on' if p.startswith('/calendar') }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>달력</a>
+  <a href="/settings" class="{{ 'on' if p.startswith(('/settings', '/tasks', '/sentences', '/account')) }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>설정</a>
 </nav>
 {% endif %}
 </body>

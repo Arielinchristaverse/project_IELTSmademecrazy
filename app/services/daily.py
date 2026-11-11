@@ -124,7 +124,7 @@ def build_mail(db: Session, user: User, d: date, assignments: list[Assignment]):
             if action in it["links"]:
                 text_lines.append(f"  {label}: {it['links'][action]}")
     text_lines.append(f"\n이번 주 진척도: {ctx['progress']}%")
-    subject = f"[오늘의 공부] {d.month}/{d.day}({WEEKDAYS_KO[d.weekday()]}) 과제 {len(items)}개"
+    subject = f"[afterwork] {d.month}/{d.day}({WEEKDAYS_KO[d.weekday()]}) 오늘의 과제 {len(items)}개"
     return subject, html, "\n".join(text_lines)
 
 
@@ -152,7 +152,7 @@ def _send_email(db: Session, user: User, d: date, assignments: list[Assignment],
 def _send_push(db: Session, user: User, d: date, assignments: list[Assignment], test: bool) -> ChannelResult:
     """짧은 문구만 보내고, 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다."""
     data = push.payload(
-        "Study Shift" + (" (테스트)" if test else ""),
+        "afterwork" + (" (테스트)" if test else ""),
         short_summary(assignments) if assignments else "오늘 배정된 과제가 없습니다.",
         url="/today",
         tag=f"daily-{d.isoformat()}",

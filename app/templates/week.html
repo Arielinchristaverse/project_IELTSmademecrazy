@@ -17,7 +17,7 @@
 <div class="summary">
   <div>
     <div class="muted" style="font-size:13px">이번 주 진척도</div>
-    <div class="stat">{{ progress }}%</div>
+    <div class="stat">{{ progress }}<span class="pct">%</span></div>
   </div>
   <div class="row" style="align-items:flex-start">
     <form method="post" action="/weeks/generate">
@@ -45,14 +45,14 @@
       <b>{{ d.date.month }}/{{ d.date.day }} {{ WEEKDAYS_KO[d.date.weekday()] }}</b>
       <span>
         {% if d.cal and d.cal.excluded %}<span class="tag">제외</span>
-        {% elif d.cal and d.cal.shift %}<span class="tag {{ 'green' if d.weekend }}">{{ d.cal.shift.label }}</span>
+        {% elif d.cal and d.cal.shift %}<span class="tag {{ 'accent' if d.weekend }}">{{ d.cal.shift.label }}</span>
         {% else %}<span class="tag">미입력</span>{% endif %}
       </span>
     </div>
     <div class="cap">{{ d.used }} / {{ d.capacity }}분{% if d.weekend %} · 보충일{% endif %}</div>
     {% for a in d.assignments %}
       <div class="item {{ a.status }}">
-        <div class="name">{% if a.kind == 'makeup' %}<span class="tag navy">보충</span> {% endif %}{{ a.task.name }}</div>
+        <div class="name">{% if a.kind == 'makeup' %}<span class="tag accent">보충</span> {% endif %}{{ a.task.name }}</div>
         <div class="muted acts">{{ a.task.duration_min }}분 ·
           {% for s, label in [('done','달성'),('missed','미달성'),('scheduled','예정')] if s != a.status %}
             <form method="post" action="/assignments/{{ a.id }}/status"><input type="hidden" name="status" value="{{ s }}"><button class="link">{{ label }}</button></form>

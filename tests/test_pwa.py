@@ -21,7 +21,8 @@ def test_manifest():
     assert r.status_code == 200 and r.headers["content-type"].startswith("application/manifest+json")
     m = r.json()
     assert m["display"] == "standalone" and m["scope"] == "/" and m["start_url"].startswith("/today")
-    assert m["theme_color"] == "#1f2a44" and m["background_color"] == "#ffffff"
+    assert m["theme_color"] == "#FAFAFA" and m["background_color"] == "#FAFAFA"  # 브리프 --bg-canvas
+    assert m["short_name"] == "afterwork"
     purposes = {i["purpose"] for i in m["icons"]}
     assert purposes == {"any", "maskable"}
     for icon in m["icons"]:
@@ -47,7 +48,9 @@ def test_ios_meta_and_apple_touch_icon():
         'rel="manifest" href="/manifest.webmanifest"',
         'name="apple-mobile-web-app-capable" content="yes"',
         'rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-180.png"',
-        'name="theme-color" content="#1f2a44"',
+        'name="theme-color" content="#FAFAFA" media="(prefers-color-scheme: light)"',
+        'name="theme-color" content="#161B22" media="(prefers-color-scheme: dark)"',
+        'name="apple-mobile-web-app-title" content="afterwork"',
         "viewport-fit=cover",
         '/static/app.js',
     ]:
@@ -67,3 +70,29 @@ def test_service_worker_behaviour_in_node():
     script = Path(__file__).resolve().parent / "js" / "sw.test.js"
     r = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_theme_setting_and_brand_tokens(db, user):
+    from tests.conftest import login
+
+    with TestClient(app) as c:
+        login(c)
+        assert "data-theme" not in c.get("/today").text.split("<head>")[0]  # 기본: 기기 설정
+        c.post("/settings/theme", data={"theme": "dark"})
+        assert '<html lang="ko" data-theme="dark">' in c.get("/today").text
+        c.post("/settings/theme", data={"theme": "auto"})
+        assert "data-theme" not in c.get("/today").text.split("<head>")[0]
+        css = c.get("/static/style.css").text
+    for token in ["--bg-canvas: #FAFAFA", "--bg-surface: #FFFFFF", "--text-primary: #1E232A", "--text-secondary: #6B7280",
+                  "--border-grid: #E5E7EB", "--accent-focus: #F59E0B", "--bg-canvas: #161B22", "--bg-surface: #21262D",
+                  "--text-primary: #F7F6F2", "--text-secondary: #9CA3AF", "--border-grid: #30363D"]:
+        assert token in css, token
+
+
+def test_fonts_are_self_hosted():
+    with TestClient(app) as c:
+        css = c.get("/static/fonts/pretendard/pretendard.css").text
+        first = css.split("url(")[1].split(")")[0]
+        assert first.startswith("/static/fonts/pretendard/") and c.get(first).status_code == 200
+        assert c.get("/static/fonts/cormorant/cormorant-garamond-latin-500-italic.woff2").status_code == 200
+        assert "googleapis" not in c.get("/static/style.css").text and "jsdelivr" not in c.get("/static/style.css").text

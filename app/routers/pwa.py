@@ -7,20 +7,20 @@ from fastapi.responses import FileResponse, JSONResponse
 router = APIRouter()
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
-NAVY, WHITE = "#1f2a44", "#ffffff"
+CANVAS = "#FAFAFA"  # 라이트 모드 바탕 (브리프 --bg-canvas)
 
 MANIFEST = {
     "id": "/",
-    "name": "Study Shift — 교대근무 공부 알림",
-    "short_name": "Study Shift",
-    "description": "근무 스케줄에 맞춰 매일 오늘의 공부 과제를 알려 드립니다.",
+    "name": "afterwork — 교대근무 맞춤 학습 플래너",
+    "short_name": "afterwork",
+    "description": "오늘의 작은 실행이, 내 삶의 다음 페이지를 만듭니다. 근무표에 맞춰 매일 오늘의 과제를 알려 드립니다.",
     "lang": "ko",
     "start_url": "/today?source=pwa",
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait",
-    "background_color": WHITE,
-    "theme_color": NAVY,
+    "background_color": CANVAS,
+    "theme_color": CANVAS,
     "icons": [
         {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
         {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},

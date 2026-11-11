@@ -24,6 +24,10 @@ def on_day(monkeypatch):
     return box
 
 
+def progress_of(html: str) -> int:
+    return int(html.split('class="stat">')[1].split("<")[0])
+
+
 def setup(db, user, shifts=("DAY",) * 6 + ("OFF",)):
     for i, code in enumerate(shifts):
         db.add(CalendarDay(user_id=user.id, date=MON + timedelta(days=i), shift_code=code))
@@ -39,8 +43,8 @@ def test_today_shows_mail_content_and_records_directly(db, user, on_day):
     with TestClient(app) as c:
         login(c)
         html = c.get("/today").text
-        assert "TODAY'S STUDY" in html and "11월 2일(월)" in html and "데이 근무일" in html
-        assert "이번 주 진척도" in html and "0%" in html
+        assert "Today · 11.02 MON" in html and "11월 2일(월)" in html and "데이 근무일" in html
+        assert "이번 주 진척도" in html and progress_of(html) == 0
         assert "주말 보충 리스트" in html and "보류된 과제가 없습니다" in html
         assert "There is" in html or "“" in html  # 영어 문장
         todays = db.scalars(select(Assignment).where(Assignment.user_id == user.id, Assignment.date == MON)).all()
@@ -50,8 +54,8 @@ def test_today_shows_mail_content_and_records_directly(db, user, on_day):
         r = c.post(f"/assignments/{done.id}/status", data={"status": "done", "back": "/today"}, follow_redirects=False)
         assert r.headers["location"] == "/today"
         html = c.get("/today").text
-        assert "0%" not in html.split("이번 주 진척도")[1][:80]  # 진척도 반영
-        assert "되돌리기" in html
+        assert progress_of(html) > 0  # 진척도 반영
+        assert 'aria-pressed="true"' in html  # 체크 상태
 
         if missed:
             c.post(f"/assignments/{missed.id}/status", data={"status": "missed", "back": "/today"})

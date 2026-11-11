@@ -1,4 +1,4 @@
-/* Study Shift 서비스 워커
+/* afterwork 서비스 워커
  * - push: 받은 즉시 반드시 알림을 띄운다. iOS 는 알림을 띄우지 않는 푸시가 반복되면 구독을 취소한다.
  *   그래서 내용이 비었거나 형식이 깨져도 기본 문구로 알림을 띄운다.
  * - notificationclick: '/today' (또는 같은 사이트의 지정 경로)를 연다. 이미 열린 창이 있으면 그 창을 쓴다.
@@ -21,7 +21,7 @@ self.addEventListener("push", (event) => {
   } catch (e) {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Study Shift";
+  const title = data.title || "afterwork";
   const options = {
     body: data.body || "오늘의 공부를 확인하세요.",
     icon: "/static/icons/icon-192.png",

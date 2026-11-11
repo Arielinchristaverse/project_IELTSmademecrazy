@@ -11,12 +11,12 @@
 <form method="post" action="/settings">
   {% include "partials/shift_table.html" %}
   <h2>알림 받는 방법</h2>
-  <div class="row">
+  <div class="seg" role="radiogroup" aria-label="알림 받는 방법">
     {% for value, label in [('push','웹 푸시'),('email','메일'),('both','둘 다')] %}
       {% set needs = ['push','email'] if value == 'both' else [value] %}
       {% set ok = needs | select('in', channels_enabled) | list | length == needs | length %}
-      <label class="{{ '' if ok else 'muted' }}"><input type="radio" name="notify_channel" value="{{ value }}"
-        {{ 'checked' if user.notify_channel == value }} {{ '' if ok else 'disabled' }}> {{ label }}</label>
+      <label class="{{ '' if ok else 'disabled' }}"><input type="radio" name="notify_channel" value="{{ value }}"
+        {{ 'checked' if user.notify_channel == value }} {{ '' if ok else 'disabled' }}>{{ label }}</label>
     {% endfor %}
   </div>
   <h2>메일 받는 주소</h2>
@@ -26,7 +26,7 @@
 </form>
 
 <h2 id="push">이 기기 알림 (웹 푸시)</h2>
-<div id="push-box" class="push-box">
+<div id="push-box" class="push-box panel">
   <p data-status class="muted">알림 상태를 확인하는 중…</p>
   <div class="row">
     <button type="button" data-enable>알림 켜기</button>
@@ -35,13 +35,13 @@
   <div data-denied hidden class="help">
     <b>알림이 꺼져 있을 때 다시 켜는 방법</b>
     <ul>
-      <li>아이폰·아이패드: <b>설정 앱 → 알림 → Study Shift → 알림 허용</b> 을 켠 뒤 이 화면을 다시 여세요.</li>
+      <li>아이폰·아이패드: <b>설정 앱 → 알림 → afterwork → 알림 허용</b> 을 켠 뒤 이 화면을 다시 여세요.</li>
       <li>안드로이드·PC 크롬: 주소창 왼쪽 자물쇠(또는 사이트 정보) → <b>알림 → 허용</b></li>
       <li>알림을 쓰기 어렵다면 위의 <b>알림 받는 방법</b>을 <b>메일</b>로 바꾸고 저장하세요.</li>
     </ul>
   </div>
   <div data-install hidden class="help">
-    Safari 아래쪽 <b>공유 버튼(□↑) → 홈 화면에 추가</b> 를 누른 뒤, 홈 화면의 Study Shift 앱에서 로그인하고 알림을 켜 주세요.
+    Safari 아래쪽 <b>공유 버튼(□↑) → 홈 화면에 추가</b> 를 누른 뒤, 홈 화면의 afterwork 앱에서 로그인하고 알림을 켜 주세요.
   </div>
 </div>
 {% if devices %}
@@ -59,10 +59,21 @@
 {% endif %}
 <script src="/static/push.js" defer></script>
 
+<h2 id="theme">화면 모드</h2>
+{% set theme = request.cookies.get('theme') or 'auto' %}
+<form method="post" action="/settings/theme" class="row">
+  <div class="seg" role="radiogroup" aria-label="화면 모드">
+    {% for value, label in [('auto','기기 설정 따라가기'),('light','라이트 · Day'),('dark','다크 · Night')] %}
+    <label><input type="radio" name="theme" value="{{ value }}" {{ 'checked' if theme == value }}>{{ label }}</label>
+    {% endfor %}
+  </div>
+  <button class="ghost">적용</button>
+</form>
+
 <h2>메일 연결 상태</h2>
 <table class="list">
   <tr><th style="width:180px">발송 방식</th><td>
-    {% if mail.backend == 'smtp' %}<span class="tag green">Gmail 실제 발송</span>
+    {% if mail.backend == 'smtp' %}<span class="tag accent">Gmail 실제 발송</span>
     {% else %}<span class="tag">저장만 함 (console)</span> <span class="muted">실제로 보내려면 MAIL_BACKEND=smtp</span>{% endif %}
   </td></tr>
   <tr><th>보내는 Gmail</th><td>{{ mail.address or '— (GMAIL_ADDRESS 미설정)' }}</td></tr>

@@ -3,7 +3,7 @@
   <tr><th>근무 유형</th><th>공부 가능 시간(분)</th><th>알림 시각</th></tr>
   {% for s in shifts %}
   <tr>
-    <td>{{ s.label }}{% if s.code == 'OFF' %} <span class="tag green">보충일</span>{% endif %}</td>
+    <td>{{ s.label }}{% if s.code == 'OFF' %} <span class="tag accent">보충일</span>{% endif %}</td>
     <td><input type="number" min="0" step="5" name="{{ s.code }}_minutes" value="{{ s.study_minutes }}" style="width:96px" inputmode="numeric"></td>
     <td><input type="time" name="{{ s.code }}_time" value="{{ s.send_time.strftime('%H:%M') }}"></td>
   </tr>

@@ -1,43 +1,47 @@
 {% extends "base.html" %}
-{% block title %}오늘 · Study Shift{% endblock %}
+{% block title %}오늘 · afterwork{% endblock %}
 {% block content %}
+{% set weekdays_en = ['MON','TUE','WED','THU','FRI','SAT','SUN'] %}
 <section class="today">
-  <p class="eyebrow">TODAY'S STUDY</p>
+  <p class="eyebrow">Today · {{ '%02d' % date.month }}.{{ '%02d' % date.day }} {{ weekdays_en[date.weekday()] }}{% if cal and cal.shift %} · <span class="accent">{{ cal.shift.label }}</span>{% endif %}</p>
   <h1 class="greeting">{{ greeting }}</h1>
 
-  <div class="today-head">
-    <span>오늘의 과제{% if assignments %} · 총 {{ total_min }}분{% endif %}</span>
-    {% if assignments %}<span class="muted">{{ done_count }}/{{ assignments|length }} 달성</span>{% endif %}
+  <div class="section-head">
+    <span>오늘의 과제{% if assignments %} · {{ total_min }}분{% endif %}</span>
+    {% if assignments %}<span>{{ done_count }} / {{ assignments|length }}</span>{% endif %}
   </div>
 
   {% if assignments %}
   <ul class="cards">
     {% for a in assignments %}
     <li class="card {{ a.status }}">
+      <form method="post" action="/assignments/{{ a.id }}/status">
+        <input type="hidden" name="status" value="{{ 'scheduled' if a.status == 'done' else 'done' }}">
+        <input type="hidden" name="back" value="/today">
+        <button class="check" aria-label="{{ a.task.name }} {{ '달성 취소' if a.status == 'done' else '달성' }}" aria-pressed="{{ 'true' if a.status == 'done' else 'false' }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </button>
+      </form>
       <div class="card-main">
-        <div class="card-title">{% if a.kind == 'makeup' %}<span class="tag navy">보충</span> {% endif %}{{ a.task.name }}</div>
+        <div class="card-title">{% if a.kind == 'makeup' %}<span class="tag accent">보충</span> {% endif %}{{ a.task.name }}</div>
         <div class="card-sub">{{ a.task.subject }}{% if a.task.subject %} · {% endif %}{{ a.task.duration_min }}분</div>
       </div>
-      {% if a.status == 'scheduled' %}
-      <div class="card-actions">
-        <form method="post" action="/assignments/{{ a.id }}/status">
-          <input type="hidden" name="status" value="done"><input type="hidden" name="back" value="/today">
-          <button class="btn-done">달성</button>
-        </form>
+      <div class="card-side">
+        {% if a.status == 'scheduled' %}
         <form method="post" action="/assignments/{{ a.id }}/status">
           <input type="hidden" name="status" value="missed"><input type="hidden" name="back" value="/today">
-          <button class="btn-missed">미달성</button>
+          <button class="link">미달성</button>
         </form>
-      </div>
-      {% else %}
-      <div class="card-state">
-        <span class="state-label">{{ '달성' if a.status == 'done' else '미달성 · 주말 보충' }}</span>
+        {% else %}
+        <span class="state">{{ '달성' if a.status == 'done' else '미달성 · 주말 보충' }}</span>
+        {% if a.status == 'missed' %}
         <form method="post" action="/assignments/{{ a.id }}/status">
           <input type="hidden" name="status" value="scheduled"><input type="hidden" name="back" value="/today">
           <button class="link">되돌리기</button>
         </form>
+        {% endif %}
+        {% endif %}
       </div>
-      {% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -50,16 +54,16 @@
   </div>
   {% endif %}
 
-  <div class="progress-row">
-    <span class="muted">이번 주 진척도</span>
-    <span class="stat">{{ progress }}%</span>
+  <div class="progress-block">
+    <span class="label">이번 주 진척도</span>
+    <span class="stat">{{ progress }}<span class="pct">%</span></span>
   </div>
 
   <h2>주말 보충 리스트</h2>
   {% if pending %}
   <ul class="plain">
     {% for p in pending %}
-    <li>{{ p.task.name }} <span class="muted">({{ p.task.duration_min }}분, {{ p.date.month }}/{{ p.date.day }})</span></li>
+    <li><span>{{ p.task.name }}</span><span class="muted">{{ p.task.duration_min }}분 · {{ p.date.month }}/{{ p.date.day }}</span></li>
     {% endfor %}
   </ul>
   {% else %}<p class="muted">보류된 과제가 없습니다.</p>{% endif %}

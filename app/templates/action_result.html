@@ -7,7 +7,7 @@
   <p>{{ message }}</p>
   {% if progress is not none %}
   <p class="muted" style="margin-top:28px">이번 주 진척도</p>
-  <div class="stat">{{ progress }}%</div>
+  <div class="stat">{{ progress }}<span class="pct">%</span></div>
   <p class="muted">보류 {{ pending_count }}개</p>
   {% endif %}
 </div>

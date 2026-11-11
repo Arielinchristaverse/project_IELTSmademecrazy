@@ -83,6 +83,22 @@ async def save_settings(request: Request, db: Session = Depends(get_db), user: U
     return RedirectResponse("/settings?saved=1", status_code=303)
 
 
+THEMES = ("auto", "light", "dark")
+
+
+@router.post("/settings/theme")
+async def save_theme(request: Request, _: User = Depends(current_user)):
+    """화면 모드는 기기별 취향이라 계정이 아닌 이 브라우저 쿠키에 저장한다."""
+    theme = (await request.form()).get("theme")
+    resp = RedirectResponse("/settings#theme", status_code=303)
+    if theme in ("light", "dark"):
+        resp.set_cookie("theme", theme, max_age=60 * 60 * 24 * 400, samesite="lax",
+                        secure=settings.base_url.startswith("https://"))
+    else:
+        resp.delete_cookie("theme")
+    return resp
+
+
 @router.get("/admin/backup")
 def download_backup(_: User = Depends(admin_user)):
     """현재 DB의 일관된 사본을 내려받는다 (관리자 전용)."""
