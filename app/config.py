@@ -18,11 +18,19 @@ def _default_base_url() -> str:
     return "http://localhost:8000"
 
 
+def _secret_env(name: str, default: str = "") -> str:
+    """대시보드에 붙여 넣은 값 정리: 앞뒤 공백·따옴표, 실수로 함께 붙인 'NAME=' 접두어를 제거한다."""
+    v = (os.getenv(name) or default).strip().strip("'\"").strip()
+    if v.startswith(name + "="):
+        v = v[len(name) + 1 :].strip().strip("'\"").strip()
+    return v
+
+
 class Settings:
     secret_key: str = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
     base_url: str = (os.getenv("BASE_URL") or _default_base_url()).rstrip("/")
     mail_backend: str = os.getenv("MAIL_BACKEND", "console")
-    gmail_address: str = os.getenv("GMAIL_ADDRESS", "")
+    gmail_address: str = _secret_env("GMAIL_ADDRESS")
     gmail_app_password: str = os.getenv("GMAIL_APP_PASSWORD", "")
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./data/app.db")
     timezone: ZoneInfo = ZoneInfo(os.getenv("TIMEZONE", "Asia/Seoul"))
@@ -32,18 +40,18 @@ class Settings:
     notify_channels: tuple[str, ...] = tuple(
         c.strip() for c in os.getenv("NOTIFY_CHANNELS", "push,email").split(",") if c.strip()
     )
-    admin_email: str = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    admin_email: str = _secret_env("ADMIN_EMAIL").lower()
     # 구글 로그인 (Google Cloud Console 의 OAuth 클라이언트)
-    google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
-    google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    google_client_id: str = _secret_env("GOOGLE_CLIENT_ID")
+    google_client_secret: str = _secret_env("GOOGLE_CLIENT_SECRET")
     # 비어 있으면 누구나 가입, 값이 있으면 목록(쉼표 구분)과 ADMIN_EMAIL 만 가입
     allowed_emails: frozenset[str] = frozenset(
         e.strip().lower() for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()
     )
     # 웹 푸시 VAPID 키 (python -m scripts.gen_vapid 로 생성)
-    vapid_public_key: str = os.getenv("VAPID_PUBLIC_KEY", "")
-    vapid_private_key: str = os.getenv("VAPID_PRIVATE_KEY", "")
-    vapid_subject: str = os.getenv("VAPID_SUBJECT", "")  # mailto:you@example.com 또는 https://사이트주소
+    vapid_public_key: str = _secret_env("VAPID_PUBLIC_KEY")
+    vapid_private_key: str = _secret_env("VAPID_PRIVATE_KEY")
+    vapid_subject: str = _secret_env("VAPID_SUBJECT")  # mailto:you@example.com 또는 https://사이트주소
     # 개발·테스트용 이메일 로그인 (운영에서 켜져 있으면 서버가 시작을 거부)
     dev_login: bool = os.getenv("DEV_LOGIN", "false").lower() == "true"
     # 인터넷에 공개된 서버(Render)에서 실행 중인지

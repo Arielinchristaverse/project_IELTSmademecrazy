@@ -6,6 +6,7 @@ iOS 는 Safari 와 홈 화면 앱의 쿠키 저장소가 분리되어 있고, �
 - 시작한 기기에는 handoff 쿠키만 남긴다. 콜백이 같은 저장소에서 끝나면 바로 로그인,
   아니면 "앱으로 돌아가세요" 화면을 보여주고, 앱이 다시 열릴 때 /auth/handoff 로 로그인을 넘겨받는다.
 """
+import logging
 import secrets
 from datetime import timedelta
 
@@ -37,6 +38,15 @@ HANDOFF_COOKIE = "login_handoff"
 LOGIN_TTL = timedelta(minutes=10)
 
 router = APIRouter()
+log = logging.getLogger("afterwork.auth")
+
+
+def _error_code(e: Exception) -> str:
+    """사용자에게 보여 줄 짧은 오류 코드 (비밀값이 아닌 OAuth 오류 이름만)."""
+    code = getattr(e, "error", None)  # authlib OAuthError: invalid_client, invalid_grant, redirect_uri_mismatch …
+    if isinstance(code, str) and code.replace("_", "").isalnum():
+        return code
+    return type(e).__name__
 
 
 def is_public(path: str) -> bool:
@@ -114,11 +124,22 @@ async def google_callback(
 ):
     lr = db.scalar(select(LoginRequest).where(LoginRequest.state == state)) if state else None
     if error or lr is None or lr.completed_at or clock.now() - lr.created_at > LOGIN_TTL:
-        return _login_page(request, "로그인이 취소되었거나 시간이 지났습니다. 다시 시도해 주세요.", 400)
+        if error:
+            print(f"[auth] google returned error={error}", flush=True)
+        return _login_page(
+            request,
+            "로그인이 취소되었거나 시간이 지났습니다. 다시 시도해 주세요." + (f" (오류 코드: {error})" if error else ""),
+            400,
+        )
     try:
         claims = await google_auth.verify(callback_url(), code, lr.code_verifier, lr.oidc_nonce)
-    except Exception:  # noqa: BLE001 — 검증 실패 내용은 사용자에게 노출하지 않는다
-        return _login_page(request, "구글 로그인 확인에 실패했습니다. 다시 시도해 주세요.", 400)
+    except Exception as e:  # noqa: BLE001
+        # 원인은 서버 로그에 남기고, 화면에는 짧은 오류 코드만 보여 준다
+        log.warning("google login verify failed: %s: %s", type(e).__name__, getattr(e, "description", "") or e)
+        print(f"[auth] google login verify failed: {type(e).__name__}: {getattr(e, 'description', '') or e}", flush=True)
+        return _login_page(
+            request, f"구글 로그인 확인에 실패했습니다. 다시 시도해 주세요. (오류 코드: {_error_code(e)})", 400
+        )
 
     email = claims.get("email", "")
     if not email or not claims.get("email_verified"):
