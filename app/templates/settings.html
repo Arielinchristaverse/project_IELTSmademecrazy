@@ -1,19 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>근무 유형 · 메일</h1>
-<p class="sub">근무 유형별 하루 공부 가능 시간과 메일 발송 시각을 정합니다.</p>
+<h1>설정</h1>
+<p class="sub">근무 유형별 하루 공부 가능 시간과 알림 시각, 알림 받는 방법을 정합니다.</p>
 {% if saved %}<div class="notice">저장했습니다.</div>{% endif %}
 <form method="post" action="/settings">
-  <table class="list">
-    <tr><th>근무 유형</th><th>공부 가능 시간(분)</th><th>메일 발송 시각</th></tr>
-    {% for s in shifts %}
-    <tr>
-      <td>{{ s.label }}{% if s.code == 'OFF' %} <span class="tag green">보충일</span>{% endif %}</td>
-      <td><input type="number" min="0" step="5" name="{{ s.code }}_minutes" value="{{ s.study_minutes }}" style="width:110px"></td>
-      <td><input type="time" name="{{ s.code }}_time" value="{{ s.send_time.strftime('%H:%M') }}"></td>
-    </tr>
-    {% endfor %}
-  </table>
+  {% include "partials/shift_table.html" %}
   <h2>알림 받는 방법</h2>
   <div class="row">
     {% for value, label in [('push','웹 푸시'),('email','메일'),('both','둘 다')] %}

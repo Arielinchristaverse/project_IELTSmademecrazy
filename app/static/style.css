@@ -85,3 +85,13 @@ table.list th { color: var(--muted); font-weight: 500; font-size: 13px; }
   header nav { gap: 12px; overflow-x: auto; }
   .summary { grid-template-columns: 1fr; }
 }
+
+/* 온보딩 · 계정 · 문서 */
+.steps { list-style: none; padding: 0; margin: 0 0 24px; display: flex; gap: 8px; flex-wrap: wrap; }
+.steps li { font-size: 13px; color: var(--muted); padding: 4px 10px; border: 1px solid var(--line); border-radius: 14px; }
+.steps li.on { color: #fff; background: var(--navy); border-color: var(--navy); }
+.steps li.done { color: var(--green); border-color: var(--green); }
+button.wide, .btn.wide { width: 100%; padding: 12px; font-size: 15px; margin-top: 16px; }
+button.danger { background: #8a1f1f; border-color: #8a1f1f; }
+.doc { max-width: 680px; }
+.doc li { margin: 4px 0; }

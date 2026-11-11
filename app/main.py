@@ -10,12 +10,15 @@ from scripts import migrate
 
 from . import auth, scheduler
 from .config import settings
-from .deps import NotLoggedIn
-from .routers import actions, calendar, sentences, settings as settings_router, tasks, weeks
+from .deps import NeedsOnboarding, NotLoggedIn
+from .routers import account, actions, calendar, onboarding, sentences, settings as settings_router, tasks, weeks
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    problems = settings.production_problems()
+    if problems:
+        raise RuntimeError("운영 설정 오류: " + " / ".join(problems))
     migrate.run()
     if settings.scheduler_enabled:
         scheduler.start()
@@ -38,6 +41,11 @@ async def not_logged_in(request: Request, exc: NotLoggedIn):
     return RedirectResponse("/login", status_code=303)
 
 
+@app.exception_handler(NeedsOnboarding)
+async def needs_onboarding(request: Request, exc: NeedsOnboarding):
+    return RedirectResponse("/onboarding", status_code=303)
+
+
 # 마지막에 추가한 미들웨어가 가장 바깥에서 먼저 실행됨 → 세션이 require_login보다 먼저 준비됨
 app.add_middleware(
     SessionMiddleware,
@@ -55,3 +63,5 @@ app.include_router(calendar.router)
 app.include_router(tasks.router)
 app.include_router(sentences.router)
 app.include_router(actions.router)
+app.include_router(onboarding.router)
+app.include_router(account.router)

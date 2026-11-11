@@ -15,10 +15,10 @@
     <a href="/" class="{{ 'on' if p == '/' }}">이번 주</a>
     <a href="/calendar" class="{{ 'on' if p.startswith('/calendar') }}">근무 달력</a>
     <a href="/tasks" class="{{ 'on' if p.startswith('/tasks') }}">과제</a>
-    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">근무 유형 · 메일</a>
+    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">설정</a>
     <a href="/sentences" class="{{ 'on' if p.startswith('/sentences') }}">영어 문장</a>
   </nav>
-  <form method="post" action="/logout"><button class="link">로그아웃</button></form>
+  <a href="/account" class="{{ 'on' if p.startswith('/account') }}" style="font-size:14px;color:var(--muted)">계정</a>
 </div></header>
 {% endblock %}
 <main>{% block content %}{% endblock %}</main>

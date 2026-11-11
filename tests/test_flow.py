@@ -1,6 +1,8 @@
 from datetime import date, datetime, time, timedelta
 
 from fastapi.testclient import TestClient
+
+from tests.conftest import login
 from sqlalchemy import select
 
 from app.models import ActionToken, Assignment, CalendarDay, NotifyLog, Task
@@ -105,7 +107,7 @@ def test_login_required(db, user):
 
     with TestClient(app) as c:
         assert c.get("/", follow_redirects=False).status_code == 303
-        c.post("/login", data={"password": "pw"})
+        login(c)
         for path in ["/", "/calendar", "/tasks", "/settings", "/sentences"]:
             assert c.get(path).status_code == 200, path
 
@@ -131,7 +133,7 @@ def test_mail_preview_page(db, user):
 
     setup_month(db, user, ["DAY"] * 7)
     with TestClient(app) as c:
-        c.post("/login", data={"password": "pw"})
+        login(c)
         c.post("/mail/test", data={"day": MON.isoformat()})
         page = c.get(f"/?start={MON}").text
         assert "/mail/preview/" in page
@@ -149,15 +151,22 @@ def test_codespaces_base_url(monkeypatch):
     assert _default_base_url() == "https://cool-name-8000.app.github.dev"
 
 
-def test_production_refuses_default_password(db, user, monkeypatch):
+def test_production_refuses_dev_login(monkeypatch):
+    """운영(Render)에서 개발용 로그인이 켜져 있으면 서버가 시작을 거부한다."""
     from app.config import settings
-    from app.main import app
 
     monkeypatch.setattr(type(settings), "is_production", True)
-    monkeypatch.setattr(type(settings), "app_password", "change-me")
+    monkeypatch.setattr(type(settings), "dev_login", True)
+    monkeypatch.setattr(type(settings), "secret_key", "real-secret")
+    assert any("DEV_LOGIN" in p for p in settings.production_problems())
+    monkeypatch.setattr(type(settings), "dev_login", False)
+    assert settings.production_problems() == []
+
+
+def test_healthz_is_public():
+    from app.main import app
+
     with TestClient(app) as c:
-        r = c.post("/login", data={"password": "change-me"})
-        assert r.status_code == 403
         assert c.get("/healthz").json() == {"ok": True}
 
 
@@ -176,7 +185,7 @@ def test_backup_download_is_valid_sqlite(db, user, tmp_path):
     setup_month(db, user, ["DAY"] * 7)
     with TestClient(app) as c:
         assert c.get("/admin/backup", follow_redirects=False).status_code == 303  # 로그인 필요
-        c.post("/login", data={"password": "pw"})
+        login(c)
         r = c.get("/admin/backup")
         assert r.status_code == 200
         assert "attachment" in r.headers["content-disposition"]

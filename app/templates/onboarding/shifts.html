@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block content %}
+{% include "onboarding/_steps.html" %}
+<h1>근무 유형별 공부 시간</h1>
+<p class="sub">근무 유형마다 하루에 공부할 수 있는 시간과 알림을 받을 시각을 정해 주세요. 나중에 설정에서 바꿀 수 있어요.</p>
+<form method="post" action="/onboarding/shifts">
+  {% include "partials/shift_table.html" %}
+  <p class="muted" style="font-size:13px">오프인 날과 일요일은 '주말'로 보고, 못 한 과제를 먼저 보충합니다.</p>
+  <button class="wide">다음</button>
+</form>
+{% endblock %}

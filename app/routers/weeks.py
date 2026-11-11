@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from .. import clock
 from ..db import get_db
-from ..deps import current_user, owned
+from ..deps import current_user, owned, safe_back
 from ..models import Assignment, CalendarDay, NotifyLog, User
 from ..services.allocator import (
     day_capacity,
@@ -114,9 +114,7 @@ def change_status(
     a = owned(db, Assignment, aid, user)
     if status in ("scheduled", "done", "missed"):
         set_status(db, a, status)
-    # back 은 같은 사이트 안의 경로만 허용
-    target = back if back.startswith("/") and not back.startswith("//") else f"/?start={a.week_start}"
-    return RedirectResponse(target, status_code=303)
+    return RedirectResponse(safe_back(back, f"/?start={a.week_start}"), status_code=303)
 
 
 @router.get("/mail/preview/{name}")

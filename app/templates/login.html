@@ -1,11 +1,31 @@
 {% extends "base.html" %}
 {% block header %}{% endblock %}
 {% block content %}
-<form class="login" method="post" action="/login">
+<div class="login">
   <h1>Study Shift</h1>
-  <p class="sub">비밀번호를 입력하세요.</p>
+  <p class="sub">교대근무에 맞춘 오늘의 공부 알림</p>
+  {% if info %}<div class="notice">{{ info }}</div>{% endif %}
   {% if error %}<p class="warn">{{ error }}</p>{% endif %}
-  <input type="password" name="password" autofocus required>
-  <button style="width:100%">로그인</button>
-</form>
+
+  {% if google_ready %}
+    <a class="btn" href="/auth/google/start" style="display:block;text-align:center">Google 계정으로 계속하기</a>
+  {% else %}
+    <p class="muted" style="font-size:13px">구글 로그인이 아직 설정되지 않았습니다 (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).</p>
+  {% endif %}
+
+  {% if dev_login %}
+  <form method="post" action="/auth/dev" style="margin-top:28px;border-top:1px solid var(--line);padding-top:16px">
+    <p class="muted" style="font-size:13px;margin:0">개발용 로그인 (DEV_LOGIN) — 운영에서는 꺼집니다</p>
+    <input type="email" name="email" placeholder="email@example.com" required>
+    <button class="ghost" style="width:100%">이메일로 들어가기</button>
+  </form>
+  {% endif %}
+
+  <p class="muted" style="font-size:12px;margin-top:28px">
+    로그인하면 <a href="/privacy">개인정보처리방침</a>에 동의하는 것으로 봅니다.
+    요청 정보: 이메일, 이름(구글 프로필).
+  </p>
+  <p style="font-size:13px"><a href="/auth/handoff?redirect=1">다른 창에서 로그인을 마쳤나요? 여기를 눌러 계속하기</a></p>
+</div>
+<script src="/static/login.js" defer></script>
 {% endblock %}

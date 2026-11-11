@@ -1,0 +1,29 @@
+{# 과제 추가/수정 폼과 목록. 필요: tasks, edit, (back) #}
+<form method="post" action="/tasks" class="row" style="margin-bottom:24px">
+  {% if edit %}<input type="hidden" name="task_id" value="{{ edit.id }}">{% endif %}
+  {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+  <input name="name" placeholder="과제명" required value="{{ edit.name if edit }}" style="width:220px">
+  <input name="subject" placeholder="과목" value="{{ edit.subject if edit }}" style="width:120px">
+  <input type="number" name="duration_min" min="1" placeholder="소요(분)" required value="{{ edit.duration_min if edit }}" style="width:100px">
+  <input type="number" name="weekly_count" min="1" max="7" placeholder="주당 횟수" required value="{{ edit.weekly_count if edit }}" style="width:100px">
+  <button>{{ '수정' if edit else '추가' }}</button>
+  {% if edit %}<a href="{{ back or '/tasks' }}" class="muted">취소</a>{% endif %}
+</form>
+
+<table class="list">
+  <tr><th>과제명</th><th>과목</th><th>소요</th><th>주당</th><th></th></tr>
+  {% for t in tasks %}
+  <tr class="{{ '' if t.active else 'muted' }}">
+    <td>{{ t.name }}{% if not t.active %} <span class="tag">중지</span>{% endif %}</td>
+    <td>{{ t.subject }}</td>
+    <td>{{ t.duration_min }}분</td>
+    <td>{{ t.weekly_count }}회</td>
+    <td style="text-align:right">
+      <a href="{{ back or '/tasks' }}?edit={{ t.id }}">수정</a>
+      <form method="post" action="/tasks/{{ t.id }}/toggle" style="display:inline">{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button class="link">{{ '중지' if t.active else '재개' }}</button></form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">아직 과제가 없습니다.</td></tr>
+  {% endfor %}
+</table>

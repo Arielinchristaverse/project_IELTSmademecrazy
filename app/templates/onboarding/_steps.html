@@ -1,0 +1,5 @@
+<ol class="steps">
+  {% for title in steps %}
+  <li class="{{ 'on' if loop.index0 == step else ('done' if loop.index0 < step else '') }}">{{ loop.index }}. {{ title }}</li>
+  {% endfor %}
+</ol>

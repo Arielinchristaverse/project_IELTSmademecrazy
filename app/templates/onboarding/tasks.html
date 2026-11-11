@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block content %}
+{% include "onboarding/_steps.html" %}
+<h1>공부 과제</h1>
+<p class="sub">과제명, 과목, 한 번에 걸리는 시간, 일주일에 몇 번 할지를 적어 주세요. 과제는 쪼개지 않고 통째로 배정됩니다.</p>
+{% if error %}<p class="warn">과제를 하나 이상 추가해 주세요.</p>{% endif %}
+{% include "partials/task_form.html" %}
+<form method="post" action="/onboarding/tasks/next" style="margin-top:20px">
+  <button class="wide">다음</button>
+</form>
+{% endblock %}

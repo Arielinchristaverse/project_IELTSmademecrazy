@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from .. import clock
 from ..db import get_db
-from ..deps import current_user
+from ..deps import current_user, safe_back
 from ..models import SHIFT_CODES, SHIFT_LABELS, CalendarDay, User
 from ..templating import templates
 
@@ -23,14 +23,7 @@ def _parse_month(month: str | None) -> tuple[int, int]:
     return t.year, t.month
 
 
-@router.get("/calendar")
-def calendar_page(
-    request: Request,
-    month: str | None = None,
-    saved: int = 0,
-    db: Session = Depends(get_db),
-    user: User = Depends(current_user),
-):
+def calendar_context(db: Session, user: User, month: str | None) -> dict:
     y, m = _parse_month(month)
     weeks = pycal.Calendar(firstweekday=0).monthdatescalendar(y, m)
     first, last = weeks[0][0], weeks[-1][-1]
@@ -42,22 +35,30 @@ def calendar_page(
     }
     prev_m = date(y - 1, 12, 1) if m == 1 else date(y, m - 1, 1)
     next_m = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
-    return templates.TemplateResponse(
-        request,
-        "calendar.html",
-        {
-            "year": y,
-            "month": m,
-            "weeks": weeks,
-            "days": days,
-            "codes": SHIFT_CODES,
-            "labels": SHIFT_LABELS,
-            "prev": f"{prev_m:%Y-%m}",
-            "next": f"{next_m:%Y-%m}",
-            "today": clock.today(),
-            "saved": saved,
-        },
-    )
+    return {
+        "year": y,
+        "month": m,
+        "weeks": weeks,
+        "days": days,
+        "codes": SHIFT_CODES,
+        "labels": SHIFT_LABELS,
+        "prev": f"{prev_m:%Y-%m}",
+        "next": f"{next_m:%Y-%m}",
+        "today": clock.today(),
+    }
+
+
+@router.get("/calendar")
+def calendar_page(
+    request: Request,
+    month: str | None = None,
+    saved: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    ctx = calendar_context(db, user, month)
+    ctx["saved"] = saved
+    return templates.TemplateResponse(request, "calendar.html", ctx)
 
 
 @router.post("/calendar")
@@ -89,4 +90,5 @@ async def save_calendar(request: Request, db: Session = Depends(get_db), user: U
         row.shift_code = code if code in SHIFT_CODES else None
         row.excluded = excluded
     db.commit()
-    return RedirectResponse(f"/calendar?month={y}-{m:02d}&saved=1", status_code=303)
+    back = safe_back(form.get("back"), "/calendar")
+    return RedirectResponse(f"{back}?month={y}-{m:02d}&saved=1", status_code=303)

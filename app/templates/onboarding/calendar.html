@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block content %}
+{% include "onboarding/_steps.html" %}
+<div class="row">
+  <div>
+    <h1>{{ year }}년 {{ month }}월 근무</h1>
+    <p class="sub">날짜별 근무 유형을 고르고, 공부가 어려운 날은 '제외'에 체크한 뒤 저장하세요.</p>
+  </div>
+  <div class="spacer"></div>
+  <a class="btn ghost" href="/onboarding/calendar?month={{ prev }}">←</a>
+  <a class="btn ghost" href="/onboarding/calendar?month={{ next }}">→</a>
+</div>
+{% if saved %}<div class="notice">저장했습니다. 다른 달도 입력하거나 '완료'를 누르세요.</div>{% endif %}
+{% include "partials/calendar_form.html" %}
+<form method="post" action="/onboarding/finish" style="margin-top:20px">
+  <button class="wide">완료하고 시작하기</button>
+</form>
+{% endblock %}

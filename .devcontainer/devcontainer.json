@@ -13,6 +13,7 @@
     }
   },
   "remoteEnv": {
-    "TZ": "Asia/Seoul"
+    "TZ": "Asia/Seoul",
+    "DEV_LOGIN": "true"
   }
 }

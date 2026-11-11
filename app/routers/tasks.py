@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..deps import current_user, owned
+from ..deps import current_user, owned, safe_back
 from ..models import Task, User
 from ..templating import templates
 
@@ -25,7 +25,7 @@ def tasks_page(
     return templates.TemplateResponse(
         request,
         "tasks.html",
-        {"tasks": tasks, "edit": owned(db, Task, edit, user) if edit else None, "weekly_min": weekly_min},
+        {"tasks": tasks, "edit": owned(db, Task, edit, user) if edit else None, "weekly_min": weekly_min, "back": ""},
     )
 
 
@@ -36,6 +36,7 @@ def save_task(
     subject: str = Form(""),
     duration_min: int = Form(...),
     weekly_count: int = Form(...),
+    back: str = Form(""),
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
@@ -49,12 +50,14 @@ def save_task(
     t.duration_min = max(duration_min, 1)
     t.weekly_count = min(max(weekly_count, 1), 7)
     db.commit()
-    return RedirectResponse("/tasks", status_code=303)
+    return RedirectResponse(safe_back(back, "/tasks"), status_code=303)
 
 
 @router.post("/tasks/{task_id}/toggle")
-def toggle_task(task_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+def toggle_task(
+    task_id: int, back: str = Form(""), db: Session = Depends(get_db), user: User = Depends(current_user)
+):
     t = owned(db, Task, task_id, user)
     t.active = not t.active
     db.commit()
-    return RedirectResponse("/tasks", status_code=303)
+    return RedirectResponse(safe_back(back, "/tasks"), status_code=303)

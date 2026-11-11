@@ -19,7 +19,6 @@ def _default_base_url() -> str:
 
 
 class Settings:
-    app_password: str = os.getenv("APP_PASSWORD", "change-me")
     secret_key: str = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
     base_url: str = (os.getenv("BASE_URL") or _default_base_url()).rstrip("/")
     mail_backend: str = os.getenv("MAIL_BACKEND", "console")
@@ -34,12 +33,26 @@ class Settings:
         c.strip() for c in os.getenv("NOTIFY_CHANNELS", "push,email").split(",") if c.strip()
     )
     admin_email: str = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    # 구글 로그인 (Google Cloud Console 의 OAuth 클라이언트)
+    google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    # 비어 있으면 누구나 가입, 값이 있으면 목록(쉼표 구분)과 ADMIN_EMAIL 만 가입
+    allowed_emails: frozenset[str] = frozenset(
+        e.strip().lower() for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()
+    )
+    # 개발·테스트용 이메일 로그인 (운영에서 켜져 있으면 서버가 시작을 거부)
+    dev_login: bool = os.getenv("DEV_LOGIN", "false").lower() == "true"
     # 인터넷에 공개된 서버(Render)에서 실행 중인지
     is_production: bool = os.getenv("RENDER", "").lower() == "true"
 
-    @property
-    def password_is_default(self) -> bool:
-        return self.app_password in ("", "change-me")
+    def production_problems(self) -> list[str]:
+        """운영 서버에서 위험한 설정. 하나라도 있으면 서버가 시작을 거부한다."""
+        problems = []
+        if self.is_production and self.dev_login:
+            problems.append("DEV_LOGIN 은 운영 서버에서 켤 수 없습니다.")
+        if self.is_production and self.secret_key == "dev-secret-key-change-me":
+            problems.append("SECRET_KEY 를 설정해야 합니다.")
+        return problems
 
 
 settings = Settings()

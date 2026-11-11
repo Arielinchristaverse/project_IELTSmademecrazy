@@ -5,7 +5,8 @@ _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
 os.environ["SCHEDULER_ENABLED"] = "false"
 os.environ["MAIL_BACKEND"] = "console"
-os.environ["APP_PASSWORD"] = "pw"
+os.environ["DEV_LOGIN"] = "true"
+os.environ.pop("ALLOWED_EMAILS", None)
 os.environ["ADMIN_EMAIL"] = "me@example.com"
 os.environ.pop("RENDER", None)
 
@@ -30,9 +31,14 @@ def db(monkeypatch, tmp_path):
 
 @pytest.fixture()
 def user(db):
-    """기본 테스트 사용자 = 관리자(ADMIN_EMAIL). 비밀번호 로그인(1a 임시)도 이 계정으로 들어간다."""
+    """기본 테스트 사용자 = 관리자(ADMIN_EMAIL), 온보딩 완료 상태."""
     u = get_or_create_user(db, "me@example.com")
     u.notify_channel = "email"
     u.onboarding_step = 3
     db.commit()
     return u
+
+
+def login(client, email="me@example.com"):
+    """개발용 로그인(DEV_LOGIN)으로 해당 이메일 사용자로 들어간다."""
+    return client.post("/auth/dev", data={"email": email}, follow_redirects=False)

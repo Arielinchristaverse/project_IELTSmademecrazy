@@ -5,12 +5,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.deps import current_user
 from app.main import app
 from app.models import Assignment, CalendarDay, Task, User
 from app.services.allocator import generate_week, pending_items
 from app.services.progress import week_progress
 from app.services.users import delete_user, get_or_create_user
+from tests.conftest import login
 
 MON = date(2026, 11, 2)
 
@@ -26,6 +26,8 @@ def fill(db, u, name):
 @pytest.fixture()
 def two(db, user):
     other = get_or_create_user(db, "other@example.com")
+    other.onboarding_step = 3
+    db.commit()
     fill(db, user, "MINE")
     fill(db, other, "THEIRS")
     return user, other
@@ -43,17 +45,15 @@ def test_services_only_see_own_rows(db, two):
 
 
 @pytest.fixture()
-def client_as(db):
-    """로그인한 뒤 current_user 를 특정 사용자로 바꿔 끼운다."""
+def client_as():
+    """해당 사용자로 실제 로그인한 클라이언트."""
     def make(u: User):
         c = TestClient(app)
         c.__enter__()
-        c.post("/login", data={"password": "pw"})
-        app.dependency_overrides[current_user] = lambda: db.get(User, u.id)
+        login(c, u.email)
         return c
 
-    yield make
-    app.dependency_overrides.clear()
+    return make
 
 
 def test_http_cannot_touch_other_users_data(db, two, client_as):

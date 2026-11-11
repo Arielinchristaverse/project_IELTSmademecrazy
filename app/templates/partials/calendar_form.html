@@ -1,0 +1,28 @@
+{# 월 근무 달력 입력. 필요: year, month, weeks, days, codes, labels, today, (back) #}
+<form method="post" action="/calendar">
+  <input type="hidden" name="month" value="{{ year }}-{{ '%02d' % month }}">
+  {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+  <table class="cal">
+    <tr>{% for w in WEEKDAYS_KO %}<th class="{{ 'sun' if loop.last }}">{{ w }}</th>{% endfor %}</tr>
+    {% for week in weeks %}
+    <tr>
+      {% for d in week %}
+        {% set c = days.get(d) %}
+        {% if d.month != month %}
+          <td class="other"><span class="num">{{ d.day }}</span></td>
+        {% else %}
+          <td class="{{ 'today' if d == today }}">
+            <span class="num {{ 'sun' if d.weekday() == 6 }}">{{ d.day }}</span>
+            <select name="shift_{{ d.isoformat() }}">
+              <option value="">—</option>
+              {% for code in codes %}<option value="{{ code }}" {{ 'selected' if c and c.shift_code == code }}>{{ labels[code] }}</option>{% endfor %}
+            </select>
+            <label><input type="checkbox" name="excl_{{ d.isoformat() }}" {{ 'checked' if c and c.excluded }}> 제외</label>
+          </td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  <button style="margin-top:16px">저장</button>
+</form>

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>계정</h1>
+<table class="list">
+  <tr><th style="width:140px">이메일</th><td>{{ user.email }}{% if user.is_admin %} <span class="tag">관리자</span>{% endif %}</td></tr>
+  <tr><th>이름</th><td>{{ user.name or '—' }}</td></tr>
+  <tr><th>가입일</th><td>{{ user.created_at.strftime('%Y-%m-%d') }}</td></tr>
+</table>
+<form method="post" action="/logout" style="margin-top:16px"><button class="ghost">로그아웃</button></form>
+
+<h2>계정 삭제</h2>
+<p class="muted" style="font-size:14px">계정과 모든 데이터(설정, 근무 달력, 과제, 배정 기록, 알림 기기, 영어 문장)를 즉시 삭제합니다. 되돌릴 수 없습니다.</p>
+{% if error %}<p class="warn">이메일이 일치하지 않습니다.</p>{% endif %}
+<form method="post" action="/account/delete" class="row">
+  <input type="email" name="confirm_email" placeholder="확인을 위해 {{ user.email }} 입력" required style="flex:1;min-width:220px">
+  <button class="danger">영구 삭제</button>
+</form>
+<p style="margin-top:24px;font-size:13px"><a href="/privacy">개인정보처리방침</a></p>
+{% endblock %}
