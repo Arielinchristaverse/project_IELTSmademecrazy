@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Study Shift 아이콘: 네이비 바탕 + 펼친 책 + 딥그린 체크 -->
+  <rect width="512" height="512" fill="#1f2a44"/>
+  <g transform="translate(256 262)">
+    <path d="M-150 -96 Q-75 -126 0 -96 L0 112 Q-75 82 -150 112 Z" fill="#ffffff"/>
+    <path d="M150 -96 Q75 -126 0 -96 L0 112 Q75 82 150 112 Z" fill="#e8f0ec"/>
+    <path d="M-62 4 L-14 52 L84 -54" fill="none" stroke="#1e4d3a" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

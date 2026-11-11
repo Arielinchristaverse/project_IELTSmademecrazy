@@ -11,7 +11,17 @@ from scripts import migrate
 from . import auth, scheduler
 from .config import settings
 from .deps import NeedsOnboarding, NotLoggedIn
-from .routers import account, actions, calendar, onboarding, sentences, settings as settings_router, tasks, weeks
+from .routers import (
+    account,
+    actions,
+    calendar,
+    onboarding,
+    pwa,
+    sentences,
+    settings as settings_router,
+    tasks,
+    weeks,
+)
 
 
 @asynccontextmanager
@@ -65,3 +75,4 @@ app.include_router(sentences.router)
 app.include_router(actions.router)
 app.include_router(onboarding.router)
 app.include_router(account.router)
+app.include_router(pwa.router)

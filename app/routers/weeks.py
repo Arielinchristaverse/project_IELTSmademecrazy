@@ -123,3 +123,9 @@ def mail_preview(name: str, user: User = Depends(current_user)):
     if html is None:
         return HTMLResponse("미리보기 파일이 없습니다.", status_code=404)
     return HTMLResponse(html)
+
+
+@router.get("/today")
+def today_redirect(_: User = Depends(current_user)):
+    """임시: 4단계에서 '오늘' 화면으로 교체된다."""
+    return RedirectResponse("/", status_code=303)

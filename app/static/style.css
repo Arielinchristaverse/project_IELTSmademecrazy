@@ -9,7 +9,10 @@
 }
 * { box-sizing: border-box; }
 body {
-  margin: 0; background: var(--bg); color: var(--navy);
+  margin: 0;
+  /* 홈 화면 앱: 노치·홈 인디케이터 영역 피하기 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-text-size-adjust: 100%; background: var(--bg); color: var(--navy);
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
 }
 a { color: var(--green); text-decoration: none; }
