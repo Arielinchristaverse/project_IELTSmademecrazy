@@ -17,6 +17,7 @@ from .routers import (
     calendar,
     onboarding,
     pwa,
+    push,
     sentences,
     settings as settings_router,
     tasks,
@@ -76,3 +77,4 @@ app.include_router(actions.router)
 app.include_router(onboarding.router)
 app.include_router(account.router)
 app.include_router(pwa.router)
+app.include_router(push.router)

@@ -21,6 +21,7 @@ from .allocator import (
     pending_items,
     week_start_of,
 )
+from . import push
 from .mailer import send_mail
 from .progress import week_progress
 
@@ -146,9 +147,29 @@ def _send_email(db: Session, user: User, d: date, assignments: list[Assignment],
     return ChannelResult(True, send_mail(user.mail_to, ("[테스트] " if test else "") + subject, html, text, owner_id=user.id))
 
 
-# 채널 이름 → 발송 함수. 웹 푸시는 3단계에서 등록된다.
+def _send_push(db: Session, user: User, d: date, assignments: list[Assignment], test: bool) -> ChannelResult:
+    """짧은 문구만 보내고, 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다."""
+    data = push.payload(
+        "Study Shift" + (" (테스트)" if test else ""),
+        short_summary(assignments) if assignments else "오늘 배정된 과제가 없습니다.",
+        url="/today",
+        tag=f"daily-{d.isoformat()}",
+    )
+    r = push.send_to_user(db, user, data)
+    if r.total == 0:
+        return ChannelResult(False, "알림을 받을 기기가 없습니다. 설정에서 '알림 켜기'를 해 주세요.", skipped=True)
+    detail = f"{r.sent}대 기기에 보냄" + (f", 만료된 기기 {r.removed}대 정리" if r.removed else "")
+    if r.sent:
+        return ChannelResult(True, detail)
+    if not r.errors:  # 모두 만료되어 삭제됨 → 보낼 곳 없음
+        return ChannelResult(False, detail + " — 다시 '알림 켜기'가 필요합니다.", skipped=True)
+    return ChannelResult(False, "푸시 실패: " + "; ".join(r.errors[:3]))
+
+
+# 채널 이름 → 발송 함수
 CHANNELS: dict[str, Callable[[Session, User, date, list[Assignment], bool], ChannelResult]] = {
     "email": _send_email,
+    "push": _send_push,
 }
 
 
@@ -159,6 +180,10 @@ def user_channels(user: User) -> list[str]:
     if user.wants_email:
         wanted.append("email")
     return [c for c in wanted if c in settings.notify_channels and c in CHANNELS]
+
+
+def send_test_push(db: Session, user: User, d: date) -> ChannelResult:
+    return _send_push(db, user, d, day_assignments(db, user.id, d), test=True)
 
 
 def send_test_mail(db: Session, user: User, d: date) -> str:

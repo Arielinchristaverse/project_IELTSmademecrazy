@@ -158,6 +158,8 @@ def test_production_refuses_dev_login(monkeypatch):
     monkeypatch.setattr(type(settings), "is_production", True)
     monkeypatch.setattr(type(settings), "dev_login", True)
     monkeypatch.setattr(type(settings), "secret_key", "real-secret")
+    for k in ("vapid_public_key", "vapid_private_key", "vapid_subject"):
+        monkeypatch.setattr(type(settings), k, "x")
     assert any("DEV_LOGIN" in p for p in settings.production_problems())
     monkeypatch.setattr(type(settings), "dev_login", False)
     assert settings.production_problems() == []
@@ -194,3 +196,15 @@ def test_backup_download_is_valid_sqlite(db, user, tmp_path):
     con = sqlite3.connect(f)
     assert con.execute("select count(*) from tasks").fetchone()[0] == 2
     con.close()
+
+
+def test_production_requires_vapid_when_push_enabled(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(type(settings), "is_production", True)
+    monkeypatch.setattr(type(settings), "secret_key", "real-secret")
+    monkeypatch.setattr(type(settings), "dev_login", False)
+    monkeypatch.setattr(type(settings), "vapid_private_key", "")
+    assert any("VAPID" in p for p in settings.production_problems())
+    monkeypatch.setattr(type(settings), "notify_channels", ("email",))
+    assert settings.production_problems() == []

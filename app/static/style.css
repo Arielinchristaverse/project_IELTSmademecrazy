@@ -98,3 +98,10 @@ button.wide, .btn.wide { width: 100%; padding: 12px; font-size: 15px; margin-top
 button.danger { background: #8a1f1f; border-color: #8a1f1f; }
 .doc { max-width: 680px; }
 .doc li { margin: 4px 0; }
+
+/* 알림 설정 */
+.push-box { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.push-box p[data-status] { margin: 0 0 10px; }
+.help { margin-top: 12px; font-size: 13px; background: #fafbfc; border-radius: 6px; padding: 10px 12px; }
+.help ul { margin: 6px 0 0; padding-left: 18px; }
+[hidden] { display: none !important; }

@@ -12,7 +12,7 @@ from .. import clock
 from ..config import settings
 from ..db import get_db
 from ..deps import admin_user, current_user
-from ..models import NOTIFY_CHOICES, SHIFT_CODES, ShiftType, User
+from ..models import NOTIFY_CHOICES, SHIFT_CODES, PushSubscription, ShiftType, User
 from ..services.backup import backup_to
 from ..services.mailer import mail_status
 from ..templating import templates
@@ -23,6 +23,20 @@ router = APIRouter()
 def user_shifts(db: Session, user: User) -> list[ShiftType]:
     shifts = {s.code: s for s in db.scalars(select(ShiftType).where(ShiftType.user_id == user.id))}
     return [shifts[c] for c in SHIFT_CODES if c in shifts]
+
+
+def device_label(ua: str) -> str:
+    ua = ua or ""
+    if "iPhone" in ua:
+        return "iPhone"
+    if "iPad" in ua or ("Macintosh" in ua and "Mobile" in ua):
+        return "iPad"
+    if "Android" in ua:
+        return "Android"
+    for name in ("Edg", "Chrome", "Firefox", "Safari"):
+        if name in ua:
+            return {"Edg": "Edge"}.get(name, name) + " (PC)"
+    return "기기"
 
 
 def apply_shift_form(db: Session, user: User, form) -> None:
@@ -45,6 +59,14 @@ def settings_page(
             "saved": saved,
             "mail": mail_status(),
             "channels_enabled": settings.notify_channels,
+            "devices": [
+                {"sub": d, "label": device_label(d.user_agent)}
+                for d in db.scalars(
+                    select(PushSubscription)
+                    .where(PushSubscription.user_id == user.id)
+                    .order_by(PushSubscription.created_at)
+                )
+            ],
         },
     )
 

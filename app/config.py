@@ -40,16 +40,26 @@ class Settings:
     allowed_emails: frozenset[str] = frozenset(
         e.strip().lower() for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()
     )
+    # 웹 푸시 VAPID 키 (python -m scripts.gen_vapid 로 생성)
+    vapid_public_key: str = os.getenv("VAPID_PUBLIC_KEY", "")
+    vapid_private_key: str = os.getenv("VAPID_PRIVATE_KEY", "")
+    vapid_subject: str = os.getenv("VAPID_SUBJECT", "")  # mailto:you@example.com 또는 https://사이트주소
     # 개발·테스트용 이메일 로그인 (운영에서 켜져 있으면 서버가 시작을 거부)
     dev_login: bool = os.getenv("DEV_LOGIN", "false").lower() == "true"
     # 인터넷에 공개된 서버(Render)에서 실행 중인지
     is_production: bool = os.getenv("RENDER", "").lower() == "true"
+
+    @property
+    def push_ready(self) -> bool:
+        return bool(self.vapid_public_key and self.vapid_private_key and self.vapid_subject)
 
     def production_problems(self) -> list[str]:
         """운영 서버에서 위험한 설정. 하나라도 있으면 서버가 시작을 거부한다."""
         problems = []
         if self.is_production and self.dev_login:
             problems.append("DEV_LOGIN 은 운영 서버에서 켤 수 없습니다.")
+        if self.is_production and "push" in self.notify_channels and not self.push_ready:
+            problems.append("웹 푸시를 쓰려면 VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT 가 필요합니다.")
         if self.is_production and self.secret_key == "dev-secret-key-change-me":
             problems.append("SECRET_KEY 를 설정해야 합니다.")
         return problems

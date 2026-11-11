@@ -49,7 +49,7 @@ def test_old_db_is_migrated_to_admin_with_backup(tmp_path, monkeypatch):
     url = make_old_db(path)
 
     result = migrate.run(url)
-    assert result.startswith("upgraded 0001 -> 0002")
+    assert result.startswith("upgraded 0001 -> ")  # 최신 버전까지
 
     backups = os.listdir(tmp_path / "backups")
     assert len(backups) == 1
