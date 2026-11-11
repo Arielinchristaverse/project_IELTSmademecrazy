@@ -11,7 +11,7 @@ from starlette.background import BackgroundTask
 from .. import clock
 from ..config import settings
 from ..db import get_db
-from ..deps import admin_user, current_user
+from ..deps import admin_user, current_user, safe_back
 from ..models import NOTIFY_CHOICES, SHIFT_CODES, PushSubscription, ShiftType, User
 from ..services.backup import backup_to
 from ..services.mailer import mail_status
@@ -81,6 +81,16 @@ async def save_settings(request: Request, db: Session = Depends(get_db), user: U
         user.notify_channel = channel
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+@router.post("/settings/channel")
+async def save_channel(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """알림 받는 방법만 바꾸기 (예: 알림을 거부한 경우 '메일로 받기')."""
+    form = await request.form()
+    if form.get("channel") in NOTIFY_CHOICES:
+        user.notify_channel = form.get("channel")
+        db.commit()
+    return RedirectResponse(safe_back(form.get("back"), "/settings") + "?channel=1", status_code=303)
 
 
 THEMES = ("auto", "light", "dark")

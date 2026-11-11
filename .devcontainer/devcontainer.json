@@ -1,5 +1,5 @@
 {
-  "name": "Study Shift",
+  "name": "afterwork",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "postCreateCommand": "pip install --user -r requirements.txt",
   "postStartCommand": "bash .devcontainer/start.sh",
@@ -8,12 +8,38 @@
   ],
   "portsAttributes": {
     "8000": {
-      "label": "Study Shift",
+      "label": "afterwork",
       "onAutoForward": "openBrowser"
     }
   },
   "remoteEnv": {
     "TZ": "Asia/Seoul",
     "DEV_LOGIN": "true"
+  },
+  "secrets": {
+    "GOOGLE_CLIENT_ID": {
+      "description": "(선택) 구글 로그인 테스트용. 리디렉션 URI에 https://<codespace>-8000.app.github.dev/auth/google/callback 등록 필요"
+    },
+    "GOOGLE_CLIENT_SECRET": {
+      "description": "(선택) 구글 로그인 테스트용"
+    },
+    "VAPID_PUBLIC_KEY": {
+      "description": "(선택) 웹 푸시 테스트용. python -m scripts.gen_vapid 로 생성"
+    },
+    "VAPID_PRIVATE_KEY": {
+      "description": "(선택) 웹 푸시 테스트용"
+    },
+    "VAPID_SUBJECT": {
+      "description": "(선택) 예: mailto:you@example.com"
+    },
+    "MAIL_BACKEND": {
+      "description": "(선택) smtp 로 두면 Gmail 실제 발송, 비우면 console(앱에서 미리보기)"
+    },
+    "GMAIL_ADDRESS": {
+      "description": "(선택) 메일 발송용 Gmail"
+    },
+    "GMAIL_APP_PASSWORD": {
+      "description": "(선택) Gmail 앱 비밀번호"
+    }
   }
 }

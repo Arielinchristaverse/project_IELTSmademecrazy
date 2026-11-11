@@ -188,7 +188,7 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .center { max-width: 420px; margin: 80px auto; text-align: center; }
 
 /* 온보딩 단계 */
-.steps { list-style: none; padding: 0; margin: 0 0 28px; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border-grid); }
+.steps { list-style: none; padding: 0; margin: 0 0 28px; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; border-top: 1px solid var(--border-grid); }
 .steps li { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--text-secondary); padding: 10px 0 0; border-top: 2px solid transparent; margin-top: -1px; }
 .steps li.on { color: var(--text-primary); border-top-color: var(--accent-focus); }
 .steps li.done { color: var(--text-primary); border-top-color: var(--text-primary); }
@@ -208,6 +208,14 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .seg input { position: absolute; opacity: 0; pointer-events: none; }
 .seg label:has(input:checked) { background: var(--text-primary); color: var(--bg-canvas); font-weight: 600; }
 .seg label.disabled { color: var(--text-secondary); opacity: 0.5; cursor: not-allowed; }
+
+/* 설치 안내 */
+.install-steps { list-style: none; counter-reset: s; padding: 0; margin: 8px 0 0; border-top: 1px solid var(--text-primary); }
+.install-steps li { counter-increment: s; display: grid; grid-template-columns: 36px 1fr; gap: 4px 12px; padding: 16px 0; border-bottom: 1px solid var(--border-grid); }
+.install-steps li::before { content: counter(s, decimal-leading-zero); font-variant-numeric: lining-nums; font-family: var(--font-serif); font-size: 22px; font-weight: 600; color: var(--accent-ink); line-height: 1.2; }
+.install-steps b { font-weight: 700; }
+.install-steps .inline-icon { width: 18px; height: 18px; vertical-align: -3px; }
+.callout { border-left: 3px solid var(--accent-focus); padding: 4px 0 4px 14px; margin: 24px 0; font-size: 14px; }
 
 /* ---------------------------------------------------------------- 오늘 화면 (모바일 우선) */
 .today { max-width: 560px; margin: 0 auto; }

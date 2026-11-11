@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block content %}
+{% include "onboarding/_steps.html" %}
+<h1>알림 켜기</h1>
+<p class="sub">근무 유형별로 정한 시각에 오늘의 과제를 알려 드려요. 아래 버튼을 누르면 이 기기에서 알림 허용을 묻습니다.</p>
+{% if request.query_params.get('channel') %}<div class="notice">알림 받는 방법을 메일로 바꿨어요. 근무 유형별 알림 시각에 {{ user.mail_to }} 로 보내 드립니다.</div>{% endif %}
+{% include "partials/push_box.html" %}
+<a class="btn wide" href="/today">시작하기</a>
+<p class="fine" style="text-align:center;margin-top:12px">알림은 나중에 <b>설정</b>에서도 켤 수 있어요.</p>
+{% endblock %}

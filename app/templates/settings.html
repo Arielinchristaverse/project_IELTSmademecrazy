@@ -26,24 +26,7 @@
 </form>
 
 <h2 id="push">이 기기 알림 (웹 푸시)</h2>
-<div id="push-box" class="push-box panel">
-  <p data-status class="muted">알림 상태를 확인하는 중…</p>
-  <div class="row">
-    <button type="button" data-enable>알림 켜기</button>
-    <button type="button" class="ghost" data-test hidden>테스트 알림 보내기</button>
-  </div>
-  <div data-denied hidden class="help">
-    <b>알림이 꺼져 있을 때 다시 켜는 방법</b>
-    <ul>
-      <li>아이폰·아이패드: <b>설정 앱 → 알림 → afterwork → 알림 허용</b> 을 켠 뒤 이 화면을 다시 여세요.</li>
-      <li>안드로이드·PC 크롬: 주소창 왼쪽 자물쇠(또는 사이트 정보) → <b>알림 → 허용</b></li>
-      <li>알림을 쓰기 어렵다면 위의 <b>알림 받는 방법</b>을 <b>메일</b>로 바꾸고 저장하세요.</li>
-    </ul>
-  </div>
-  <div data-install hidden class="help">
-    Safari 아래쪽 <b>공유 버튼(□↑) → 홈 화면에 추가</b> 를 누른 뒤, 홈 화면의 afterwork 앱에서 로그인하고 알림을 켜 주세요.
-  </div>
-</div>
+{% include "partials/push_box.html" %}
 {% if devices %}
 <table class="list" style="margin-top:12px">
   <tr><th>알림 받는 기기</th><th>등록</th><th>최근 성공</th><th></th></tr>
@@ -57,7 +40,6 @@
   {% endfor %}
 </table>
 {% endif %}
-<script src="/static/push.js" defer></script>
 
 <h2 id="theme">화면 모드</h2>
 {% set theme = request.cookies.get('theme') or 'auto' %}

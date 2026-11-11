@@ -154,7 +154,9 @@ def test_onboarding_flow(db):
             follow_redirects=False,
         )
         assert r.headers["location"].startswith("/onboarding/calendar?month=")
-        assert c.post("/onboarding/finish", follow_redirects=False).headers["location"] == "/today"
+        assert c.post("/onboarding/finish", follow_redirects=False).headers["location"] == "/onboarding/notify"
+        html = c.get("/onboarding/notify").text
+        assert 'id="push-box"' in html and "/static/push.js" in html and 'href="/today"' in html
         assert c.get("/today", follow_redirects=False).status_code == 200
         assert c.get("/", follow_redirects=False).status_code == 200
 

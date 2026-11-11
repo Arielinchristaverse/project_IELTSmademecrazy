@@ -1,32 +1,49 @@
-# Render Blueprint: 대시보드에서 New → Blueprint 로 이 저장소를 연결하면 아래 설정대로 만들어진다.
+# Render Blueprint — 대시보드에서 New → Blueprint 로 이 저장소를 연결하면 아래 설정대로 만들어진다.
+# sync: false 인 값은 Blueprint 생성 화면에서 직접 입력한다 (저장소에 남지 않는 비밀값).
 services:
   - type: web
-    name: afterwork
+    name: afterwork          # 주소: https://afterwork.onrender.com (이미 쓰이면 뒤에 식별자가 붙음)
     runtime: python
-    plan: starter            # 유료(상시 실행 + 메일 발송 포트 허용 + 디스크 사용 가능)
+    plan: starter            # 유료: 상시 실행 + 메일 발송 포트 허용 + 디스크 사용 가능
     region: singapore        # 한국과 가장 가까운 지역
     buildCommand: pip install -r requirements.txt
+    # 서버 시작 시 DB 마이그레이션이 자동 실행된다 (바꿀 것이 있으면 /var/data/backups 에 먼저 백업)
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     disk:
       name: afterwork-data
-      mountPath: /var/data   # SQLite 파일 저장 위치 (재배포해도 유지)
+      mountPath: /var/data   # SQLite 파일과 백업 저장 위치 (재배포해도 유지)
       sizeGB: 1
     envVars:
+      # ---- 고정 값
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: DATABASE_URL
         value: sqlite:////var/data/app.db
       - key: TIMEZONE
         value: Asia/Seoul
+      - key: NOTIFY_CHANNELS   # 서버에서 켤 알림 수단 (사용자는 이 중에서 선택)
+        value: push,email
       - key: MAIL_BACKEND
         value: smtp
-      - key: SECRET_KEY
-        generateValue: true  # Render가 임의 값 자동 생성
-      # 아래 3개는 Blueprint 생성 화면에서 직접 입력 (저장소에 남지 않음)
-      - key: APP_PASSWORD
+      - key: SECRET_KEY        # 세션 서명 키: Render 가 임의 값 자동 생성
+        generateValue: true
+      # ---- 직접 입력 (비밀값/개인 설정)
+      - key: ADMIN_EMAIL       # 관리자(백업 다운로드 가능) 구글 이메일
         sync: false
-      - key: GMAIL_ADDRESS
+      - key: ALLOWED_EMAILS    # 가입 허용 이메일(쉼표 구분). 비워 두면 누구나 가입
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: VAPID_PUBLIC_KEY  # python -m scripts.gen_vapid 로 생성
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT     # 예: mailto:you@example.com
+        sync: false
+      - key: GMAIL_ADDRESS     # 메일 알림 발송용 Gmail
         sync: false
       - key: GMAIL_APP_PASSWORD
         sync: false

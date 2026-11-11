@@ -15,6 +15,7 @@ from .routers import (
     account,
     actions,
     calendar,
+    install,
     onboarding,
     pwa,
     push,
@@ -79,4 +80,5 @@ app.include_router(actions.router)
 app.include_router(onboarding.router)
 app.include_router(account.router)
 app.include_router(pwa.router)
+app.include_router(install.router)
 app.include_router(push.router)

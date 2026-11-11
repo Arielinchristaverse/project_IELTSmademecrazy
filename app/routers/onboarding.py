@@ -16,7 +16,7 @@ from .settings import apply_shift_form, user_shifts
 router = APIRouter(prefix="/onboarding")
 
 STEPS = ["shifts", "tasks", "calendar"]
-STEP_TITLES = ["근무 유형", "공부 과제", "근무 달력"]
+STEP_TITLES = ["근무 유형", "공부 과제", "근무 달력", "알림 켜기"]
 
 
 def _render(request: Request, name: str, step: int, ctx: dict):
@@ -97,4 +97,10 @@ def finish(db: Session = Depends(get_db), user: User = Depends(current_user)):
     _advance(db, user, ONBOARDING_DONE)
     today = clock.today()
     generate_week(db, user.id, week_start_of(today), today)
-    return RedirectResponse("/today", status_code=303)
+    return RedirectResponse("/onboarding/notify", status_code=303)
+
+
+@router.get("/notify")
+def notify_page(request: Request, user: User = Depends(current_user)):
+    """마지막 단계(선택): 이 기기에서 알림 켜기. 권한 요청은 버튼을 눌렀을 때만 (push.js)."""
+    return _render(request, "notify", 3, {"user": user})
