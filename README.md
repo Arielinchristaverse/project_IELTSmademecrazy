@@ -114,7 +114,11 @@ python -m scripts.gen_vapid mailto:you@example.com
 | 항목 | 규칙 |
 |---|---|
 | 한 주 | 월 ~ 일 |
-| 주말(보충일) | 근무 유형이 **오프**인 날 + **일요일** |
+| 근무 유형 | 사용자가 직접 추가·수정·보관 (이름, 근무 시작·종료, 공부 가능 시간, 알림 시각, 쉬는 날, 색). 사용 중 최대 8개, 이름 중복 불가. 새 사용자는 데이·이브닝·나이트·오프 프리셋으로 시작 |
+| 야간 근무 | 종료가 시작보다 이르면(예: 22:00–07:00) 야간. 근무 시각은 표시용이고, 날짜는 시작한 날에 귀속 |
+| 보관·삭제 | 달력에서 쓴 유형은 삭제 불가(DB 외래키도 막음), 보관만 가능. 보관하면 선택지에서만 숨기고 기존 날은 그대로 동작 |
+| 유형 수정 | 공부 시간이나 쉬는 날이 바뀌면 **내일부터** 배정 재계산. 오늘·지난 날·기록한 배정은 유지 |
+| 주말(보충일) | **쉬는 날**로 표시한 유형의 날 + **일요일** |
 | 평일 배정 | 근무 유형별 공부 가능 시간 안에서, 과제를 쪼개지 않고 통째로 |
 | 우선순위 | 긴급도(남은 횟수 ÷ 남은 가능일) → 이번 주 배정 비율 낮은 순 → 같은 과목 적은 순 → 긴 과제 먼저 |
 | 연속 회피 | 어제 한 과제는 피함(여유가 없으면 허용). 남은 횟수는 여유 시간에 보정 배정 |
@@ -129,12 +133,12 @@ python -m scripts.gen_vapid mailto:you@example.com
 ```
 app/
   main.py  config.py  db.py  models.py  deps.py  auth.py  scheduler.py  clock.py  seed.py
-  routers/   today · weeks · calendar · tasks · settings · sentences · onboarding · account
+  routers/   today · weeks · calendar · tasks · settings · shifts · sentences · onboarding · account
              push · pwa · install · actions(메일 버튼)
-  services/  allocator(배분) · daily(준비·알림) · push · mailer · progress · users · google_auth · backup
+  services/  allocator(배분) · daily(준비·알림) · shifts(근무 유형) · push · mailer · progress · users · google_auth · backup
   templates/ 화면 · partials/ · onboarding/ · email/daily.html
   static/    style.css · sw.js · push.js · login.js · app.js · icons/ · fonts/
-migrations/  Alembic (0001 기준 · 0002 다중 사용자 · 0003 푸시 구독)
+migrations/  Alembic (0001 기준 · 0002 다중 사용자 · 0003 푸시 구독 · 0004 사용자 정의 근무 유형)
 scripts/     migrate · backup_db · gen_vapid · make_icons.js
 tests/       pytest + tests/js (Node)
 render.yaml  .devcontainer/  .env.example

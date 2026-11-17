@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from .. import clock
 from ..db import get_db
 from ..deps import current_user, safe_back
-from ..models import SHIFT_CODES, SHIFT_LABELS, CalendarDay, User
+from ..models import CalendarDay, User
+from ..services.shifts import list_shifts
 from ..templating import templates
 
 router = APIRouter()
@@ -40,8 +41,8 @@ def calendar_context(db: Session, user: User, month: str | None) -> dict:
         "month": m,
         "weeks": weeks,
         "days": days,
-        "codes": SHIFT_CODES,
-        "labels": SHIFT_LABELS,
+        # 선택지: 사용 중인 유형 + (이 달에 이미 들어가 있는) 보관된 유형
+        "shifts": list_shifts(db, user.id),
         "prev": f"{prev_m:%Y-%m}",
         "next": f"{next_m:%Y-%m}",
         "today": clock.today(),
@@ -75,6 +76,7 @@ async def save_calendar(request: Request, db: Session = Depends(get_db), user: U
             )
         )
     }
+    by_code = {s.code: s for s in list_shifts(db, user.id)}
     for day in range(1, pycal.monthrange(y, m)[1] + 1):
         d = date(y, m, day)
         code = form.get(f"shift_{d.isoformat()}") or None
@@ -87,7 +89,11 @@ async def save_calendar(request: Request, db: Session = Depends(get_db), user: U
         if row is None:
             row = CalendarDay(user_id=user.id, date=d)
             db.add(row)
-        row.shift_code = code if code in SHIFT_CODES else None
+        # 내 유형만 허용. 보관된 유형은 그날 이미 들어가 있던 경우에만 유지(새로 고를 수 없음)
+        shift = by_code.get(code) if code else None
+        if shift is not None and shift.is_archived and row.shift_code != shift.code:
+            shift = None
+        row.shift_code = shift.code if shift else None
         row.excluded = excluded
     db.commit()
     back = safe_back(form.get("back"), "/calendar")

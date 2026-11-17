@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import clock
 from ..db import get_db
 from ..deps import current_user, owned
-from ..models import ONBOARDING_DONE, Task, User
+from ..models import MAX_ACTIVE_SHIFTS, ONBOARDING_DONE, Task, User
 from ..services.allocator import generate_week, week_start_of
 from ..templating import templates
 from .calendar import calendar_context
@@ -38,7 +38,16 @@ def onboarding_home(user: User = Depends(current_user)):
 
 @router.get("/shifts")
 def shifts_page(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    return _render(request, "shifts", 0, {"shifts": user_shifts(db, user)})
+    return _render(
+        request,
+        "shifts",
+        0,
+        {
+            "shifts": user_shifts(db, user),
+            "max_shifts": MAX_ACTIVE_SHIFTS,
+            "msg": request.query_params.get("msg"),
+        },
+    )
 
 
 @router.post("/shifts")

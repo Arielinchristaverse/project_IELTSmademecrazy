@@ -1,4 +1,4 @@
-{# 월 근무 달력 입력. 필요: year, month, weeks, days, codes, labels, today, (back) #}
+{# 월 근무 달력 입력. 필요: year, month, weeks, days, shifts, today, (back) #}
 <form method="post" action="/calendar">
   <input type="hidden" name="month" value="{{ year }}-{{ '%02d' % month }}">
   {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
@@ -11,11 +11,13 @@
         {% if d.month != month %}
           <td class="other"><span class="num">{{ d.day }}</span></td>
         {% else %}
-          <td class="{{ 'today' if d == today }}">
+          <td class="{{ 'today' if d == today }}"{% if c and c.shift and c.shift.color_hex %} style="--shift: {{ c.shift.color_hex }}"{% endif %}>
             <span class="num {{ 'sun' if d.weekday() == 6 }}">{{ d.day }}</span>
             <select name="shift_{{ d.isoformat() }}">
               <option value="">—</option>
-              {% for code in codes %}<option value="{{ code }}" {{ 'selected' if c and c.shift_code == code }}>{{ labels[code] }}</option>{% endfor %}
+              {% for s in shifts if not s.is_archived or (c and c.shift_code == s.code) %}
+              <option value="{{ s.code }}" {{ 'selected' if c and c.shift_code == s.code }}>{{ s.label }}{{ ' (보관됨)' if s.is_archived }}</option>
+              {% endfor %}
             </select>
             <label><input type="checkbox" name="excl_{{ d.isoformat() }}" {{ 'checked' if c and c.excluded }}> 제외</label>
           </td>

@@ -209,6 +209,33 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .seg label:has(input:checked) { background: var(--text-primary); color: var(--bg-canvas); font-weight: 600; }
 .seg label.disabled { color: var(--text-secondary); opacity: 0.5; cursor: not-allowed; }
 
+/* 근무 유형 */
+.shift-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--text-primary); }
+.shift-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-grid); }
+.shift-row form { margin: 0; }
+.shift-row.is-archived { opacity: 0.7; }
+.shift-main { flex: 1; min-width: 0; }
+.shift-name { font-weight: 600; }
+.shift-meta { font-size: 13px; color: var(--text-secondary); }
+.shift-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--dot); flex: none; vertical-align: 0; margin-right: 4px; }
+.btn.small { padding: 7px 12px; font-size: 13px; }
+details.archived { margin-top: 20px; }
+details.archived summary { cursor: pointer; font-size: 13px; color: var(--text-secondary); padding: 6px 0; }
+.narrow { max-width: 520px; }
+.stack { display: grid; gap: 18px; }
+.field { display: grid; gap: 6px; border: 0; padding: 0; margin: 0; }
+.field > span, .field legend { font-size: 13px; font-weight: 600; color: var(--text-secondary); padding: 0; }
+.check-line { display: flex; gap: 10px; align-items: flex-start; }
+.check-line input { width: 20px; height: 20px; margin-top: 2px; }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.swatch .sw { display: block; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--bg-canvas); box-shadow: 0 0 0 1px var(--border-grid); }
+.swatch .sw.none { background: linear-gradient(135deg, transparent 46%, var(--border-grid) 46%, var(--border-grid) 54%, transparent 54%), var(--bg-surface); }
+.swatch input:checked + .sw { box-shadow: 0 0 0 2px var(--text-primary); }
+.swatch input:focus-visible + .sw { outline: 2px solid var(--accent-focus); outline-offset: 2px; }
+.cal td[style*="--shift"] { box-shadow: inset 0 3px 0 var(--shift); }
+.cal td.today[style*="--shift"] { box-shadow: inset 0 3px 0 var(--accent-focus); }
+
 /* 설치 안내 */
 .install-steps { list-style: none; counter-reset: s; padding: 0; margin: 8px 0 0; border-top: 1px solid var(--text-primary); }
 .install-steps li { counter-increment: s; display: grid; grid-template-columns: 36px 1fr; gap: 4px 12px; padding: 16px 0; border-bottom: 1px solid var(--border-grid); }

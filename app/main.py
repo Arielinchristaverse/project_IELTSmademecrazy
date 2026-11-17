@@ -21,6 +21,7 @@ from .routers import (
     push,
     sentences,
     settings as settings_router,
+    shifts,
     tasks,
     today,
     weeks,
@@ -72,6 +73,7 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent /
 app.include_router(auth.router)
 app.include_router(today.router)
 app.include_router(weeks.router)
+app.include_router(shifts.router)
 app.include_router(settings_router.router)
 app.include_router(calendar.router)
 app.include_router(tasks.router)

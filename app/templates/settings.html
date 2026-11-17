@@ -3,13 +3,17 @@
 <h1>설정</h1>
 <p class="sub">근무 유형별 하루 공부 가능 시간과 알림 시각, 알림 받는 방법을 정합니다.</p>
 {% if saved %}<div class="notice">저장했습니다.</div>{% endif %}
+{% if msg %}<div class="notice" role="status">{{ msg }}</div>{% endif %}
 <div class="quick-links">
   <a href="/tasks">공부 과제 관리 →</a>
   <a href="/sentences">영어 문장 →</a>
   <a href="/account">계정 · 로그아웃 →</a>
 </div>
+<h2 id="shifts">근무 유형</h2>
+{% set back = '/settings' %}
+{% include "partials/shift_list.html" %}
+
 <form method="post" action="/settings">
-  {% include "partials/shift_table.html" %}
   <h2>알림 받는 방법</h2>
   <div class="seg" role="radiogroup" aria-label="알림 받는 방법">
     {% for value, label in [('push','웹 푸시'),('email','메일'),('both','둘 다')] %}
@@ -21,7 +25,6 @@
   </div>
   <h2>메일 받는 주소</h2>
   <input type="email" name="notify_email" value="{{ user.notify_email }}" placeholder="비워두면 {{ user.email }}" style="width:320px">
-  <p class="muted" style="font-size:13px">오프인 날과 일요일은 '주말'로 보고, 보류 과제를 먼저 배정합니다.</p>
   <button style="margin-top:16px">저장</button>
 </form>
 

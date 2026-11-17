@@ -3,7 +3,7 @@
 {% block content %}
 {% set weekdays_en = ['MON','TUE','WED','THU','FRI','SAT','SUN'] %}
 <section class="today">
-  <p class="eyebrow">Today · {{ '%02d' % date.month }}.{{ '%02d' % date.day }} {{ weekdays_en[date.weekday()] }}{% if cal and cal.shift %} · <span class="accent">{{ cal.shift.label }}</span>{% endif %}</p>
+  <p class="eyebrow">Today · {{ '%02d' % date.month }}.{{ '%02d' % date.day }} {{ weekdays_en[date.weekday()] }}{% if cal and cal.shift %} · <span class="accent">{{ cal.shift.label }}</span>{% if cal.shift.hours_text %} · {{ cal.shift.hours_text }}{% endif %}{% endif %}</p>
   <h1 class="greeting">{{ greeting }}</h1>
 
   <div class="section-head">

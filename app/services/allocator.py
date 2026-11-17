@@ -170,7 +170,8 @@ def day_capacity(cal: CalendarDay | None) -> int:
 
 
 def is_weekend_day(d: date, cal: CalendarDay | None) -> bool:
-    return d.weekday() == 6 or (cal is not None and cal.shift_code == "OFF")
+    """주말(보충일) = '쉬는 날'로 표시한 근무 유형의 날 + 일요일."""
+    return d.weekday() == 6 or bool(cal is not None and cal.shift is not None and cal.shift.is_rest_day)
 
 
 def get_calendar_day(db: Session, uid: int, d: date) -> CalendarDay | None:

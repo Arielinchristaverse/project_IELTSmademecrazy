@@ -12,7 +12,8 @@ from .. import clock
 from ..config import settings
 from ..db import get_db
 from ..deps import admin_user, current_user, safe_back
-from ..models import NOTIFY_CHOICES, SHIFT_CODES, PushSubscription, ShiftType, User
+from ..models import MAX_ACTIVE_SHIFTS, NOTIFY_CHOICES, PushSubscription, ShiftType, User
+from ..services import shifts as shift_svc
 from ..services.backup import backup_to
 from ..services.mailer import mail_status
 from ..templating import templates
@@ -21,8 +22,8 @@ router = APIRouter()
 
 
 def user_shifts(db: Session, user: User) -> list[ShiftType]:
-    shifts = {s.code: s for s in db.scalars(select(ShiftType).where(ShiftType.user_id == user.id))}
-    return [shifts[c] for c in SHIFT_CODES if c in shifts]
+    """사용 중(보관 안 한) 근무 유형, 정한 순서대로."""
+    return shift_svc.list_shifts(db, user.id, include_archived=False)
 
 
 def device_label(ua: str) -> str:
@@ -40,10 +41,17 @@ def device_label(ua: str) -> str:
 
 
 def apply_shift_form(db: Session, user: User, form) -> None:
+    """간단 입력 표(유형별 공부 시간·알림 시각) 저장. 폼에 없는 유형은 건드리지 않는다."""
     for s in user_shifts(db, user):
-        s.study_minutes = max(int(form.get(f"{s.code}_minutes") or 0), 0)
-        hh, mm = (form.get(f"{s.code}_time") or "07:00").split(":")[:2]
-        s.send_time = time(int(hh), int(mm))
+        if f"{s.code}_minutes" not in form:
+            continue
+        try:
+            minutes = min(max(int(form.get(f"{s.code}_minutes") or 0), 0), shift_svc.MAX_STUDY_MINUTES)
+            hh, mm = (form.get(f"{s.code}_time") or s.send_time.strftime("%H:%M")).split(":")[:2]
+            send = time(int(hh), int(mm))
+        except ValueError:
+            continue
+        shift_svc.set_quick(db, s, minutes, send)
 
 
 @router.get("/settings")
@@ -55,6 +63,10 @@ def settings_page(
         "settings.html",
         {
             "shifts": user_shifts(db, user),
+            "all_shifts": shift_svc.list_shifts(db, user.id),
+            "used_codes": {s.code for s in shift_svc.list_shifts(db, user.id) if shift_svc.is_used(db, s)},
+            "max_shifts": MAX_ACTIVE_SHIFTS,
+            "msg": request.query_params.get("msg"),
             "user": user,
             "saved": saved,
             "mail": mail_status(),

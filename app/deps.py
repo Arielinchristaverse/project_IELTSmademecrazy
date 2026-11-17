@@ -19,7 +19,7 @@ class NeedsOnboarding(Exception):
 
 
 # 온보딩 중에도 쓸 수 있는 경로 (온보딩 화면이 이 경로들의 저장 기능을 재사용한다)
-ONBOARDING_ALLOWED = ("/onboarding", "/tasks", "/calendar", "/account", "/push")
+ONBOARDING_ALLOWED = ("/onboarding", "/tasks", "/calendar", "/account", "/push", "/settings/shifts")
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> User:

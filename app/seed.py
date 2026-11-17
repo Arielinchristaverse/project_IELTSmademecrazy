@@ -1,17 +1,19 @@
-"""사용자별 초기 데이터: 근무 유형 기본값, 영어 문장 50개 (IELTS 라이팅/스피킹에 쓸 만한 직접 작성 문장)."""
+"""사용자별 초기 데이터: 근무 유형 프리셋 4개, 영어 문장 50개 (IELTS 라이팅/스피킹에 쓸 만한 직접 작성 문장)."""
 from datetime import time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import SHIFT_LABELS, Sentence, ShiftType, User
+from .models import Sentence, ShiftType, User
 
-DEFAULT_SHIFTS = {
-    "DAY": (60, time(5, 30)),
-    "EVENING": (120, time(9, 0)),
-    "NIGHT": (60, time(15, 0)),
-    "OFF": (180, time(8, 0)),
-}
+# 새 사용자에게 채워지는 기본 근무 유형 4개 (온보딩·설정에서 수정 가능)
+# code, 이름, 근무 시작, 근무 종료, 공부 가능 시간(분), 알림 시각, 쉬는 날, 색
+PRESET_SHIFTS = [
+    ("DAY", "데이", time(7, 0), time(15, 0), 60, time(5, 30), False, "sky"),
+    ("EVENING", "이브닝", time(15, 0), time(23, 0), 120, time(9, 0), False, "violet"),
+    ("NIGHT", "나이트", time(23, 0), time(7, 0), 60, time(15, 0), False, "indigo"),
+    ("OFF", "오프", None, None, 180, time(8, 0), True, "teal"),
+]
 
 SENTENCES = [
     ("It is widely believed that education is the key to reducing inequality.", "교육이 불평등을 줄이는 열쇠라는 것은 널리 알려진 생각이다."),
@@ -69,12 +71,13 @@ SENTENCES = [
 
 def seed_user(db: Session, user: User) -> None:
     """새 사용자에게 기본 근무 유형과 영어 문장 50개를 만들어 준다 (이미 있으면 건너뜀)."""
-    have = set(db.scalars(select(ShiftType.code).where(ShiftType.user_id == user.id)))
-    for code, (minutes, send_time) in DEFAULT_SHIFTS.items():
-        if code not in have:
+    # 근무 유형이 하나도 없는 사용자에게만 프리셋을 채운다 (지운 프리셋을 되살리지 않도록)
+    if db.scalar(select(ShiftType.id).where(ShiftType.user_id == user.id).limit(1)) is None:
+        for pos, (code, label, start, end, minutes, send, rest, color) in enumerate(PRESET_SHIFTS):
             db.add(
                 ShiftType(
-                    user_id=user.id, code=code, label=SHIFT_LABELS[code], study_minutes=minutes, send_time=send_time
+                    user_id=user.id, code=code, label=label, start_time=start, end_time=end,
+                    study_minutes=minutes, send_time=send, is_rest_day=rest, color=color, position=pos,
                 )
             )
     if db.scalar(select(Sentence.id).where(Sentence.user_id == user.id).limit(1)) is None:

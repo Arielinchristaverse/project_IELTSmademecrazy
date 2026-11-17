@@ -46,7 +46,7 @@
       <b>{{ d.date.month }}/{{ d.date.day }} {{ WEEKDAYS_KO[d.date.weekday()] }}</b>
       <span>
         {% if d.cal and d.cal.excluded %}<span class="tag">제외</span>
-        {% elif d.cal and d.cal.shift %}<span class="tag {{ 'accent' if d.weekend }}">{{ d.cal.shift.label }}</span>
+        {% elif d.cal and d.cal.shift %}<span class="tag {{ 'accent' if d.weekend }}">{% if d.cal.shift.color_hex %}<span class="shift-dot" style="--dot: {{ d.cal.shift.color_hex }}"></span>{% endif %}{{ d.cal.shift.label }}</span>
         {% else %}<span class="tag">미입력</span>{% endif %}
       </span>
     </div>
