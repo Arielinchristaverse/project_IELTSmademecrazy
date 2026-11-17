@@ -15,7 +15,7 @@
 | 알림 | 웹 푸시 (pywebpush + VAPID) · Gmail SMTP 메일(선택) |
 | 스케줄러 | APScheduler, 1분마다 전체 사용자 순회 · 실패 시 10분 간격 최대 3회 재시도 |
 | PWA | manifest · 서비스 워커(sw.js) · iOS 메타 태그 · 아이콘 |
-| 디자인 | afterwork 브랜드 토큰(라이트/다크) · Pretendard + Cormorant Garamond (자체 호스팅, OFL) |
+| 디자인 | afterwork 브랜드 토큰(라이트/다크) · 워드마크 크기는 `style.css` 의 `--logo-size` 한 곳(큰 버전 = 2배) · Pretendard + Cormorant Garamond (자체 호스팅, OFL) |
 
 ---
 

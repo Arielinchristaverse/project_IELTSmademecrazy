@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block header %}{% endblock %}
+{% from "partials/wordmark.html" import wordmark %}
 {% block content %}
 <div class="solo">
-  <span class="wordmark">afterwork<span class="dot">.</span></span>
+  {{ wordmark(large=True) }}
   <p class="slogan">오늘의 작은 실행이,<br>내 삶의 다음 페이지를 만듭니다.</p>
   <p class="slogan-en">Your next chapter begins with today’s small win.</p>
 

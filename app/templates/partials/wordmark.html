@@ -1,0 +1,6 @@
+{#- afterwork 워드마크. 규격: 소문자 afterwork + 앰버 마침표. 크기는 style.css 의 --logo-size 하나로 정한다.
+    large=True 는 로그인·설치·온보딩 시작 화면용 큰 버전(헤더의 2배).
+    스크린리더는 aria-label 만 읽고, 장식인 마침표는 aria-hidden 으로 숨긴다. -#}
+{% macro wordmark(large=False) -%}
+<a class="wordmark{{ ' wordmark--lg' if large }}" href="/today" aria-label="afterwork">afterwork<span class="dot" aria-hidden="true">.</span></a>
+{%- endmacro %}

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block header %}{% endblock %}
+{% from "partials/wordmark.html" import wordmark %}
 {% block title %}홈 화면에 추가 · afterwork{% endblock %}
 {% block content %}
 {% set share_icon %}<svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="공유 버튼"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>{% endset %}
 <div class="solo" style="padding-top:48px">
-  <span class="wordmark">afterwork<span class="dot">.</span></span>
+  {{ wordmark(large=True) }}
   <p class="eyebrow">iPhone · iPad 설치 안내</p>
   <h1>홈 화면에 추가하면<br>매일 알림을 받을 수 있어요</h1>
   <p class="sub">iPhone에서는 홈 화면에 추가한 앱에서만 알림이 와요 (iOS 16.4 이상).</p>

@@ -1,0 +1,16 @@
+{#- 공통 헤더: 오늘·이번 주·달력·설정(과제·영어 문장·계정 포함) 화면이 모두 이 파일 하나를 쓴다.
+    고정하지 않으므로 스크롤하면 위로 사라진다. -#}
+{% from "partials/wordmark.html" import wordmark %}
+{% set p = request.url.path %}
+<header class="site-header"><div class="inner">
+  {{ wordmark() }}
+  <nav aria-label="주요 메뉴 (넓은 화면)">
+    <a href="/today" class="{{ 'on' if p == '/today' }}">오늘</a>
+    <a href="/" class="{{ 'on' if p == '/' }}">이번 주</a>
+    <a href="/calendar" class="{{ 'on' if p.startswith('/calendar') }}">근무 달력</a>
+    <a href="/tasks" class="{{ 'on' if p.startswith('/tasks') }}">과제</a>
+    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">설정</a>
+    <a href="/sentences" class="{{ 'on' if p.startswith('/sentences') }}">영어 문장</a>
+  </nav>
+  <a href="/account" class="account-link {{ 'on' if p.startswith('/account') }}">계정</a>
+</div></header>

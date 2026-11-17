@@ -18,25 +18,14 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-180.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
   <meta name="format-detection" content="telephone=no">
+  <!-- 워드마크 글꼴: CSS(@import) 를 다 읽기 전에 미리 받아 둔다. 경로는 cormorant.css 의 src 와 같아야 한다 -->
   <link rel="preload" href="/static/fonts/cormorant/cormorant-garamond-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ asset('style.css') }}">
   <script src="{{ asset('app.js') }}" defer></script>
 </head>
 <body>
 {% block header %}
-{% set p = request.url.path %}
-<header><div class="inner">
-  <a class="wordmark" href="/today">afterwork<span class="dot">.</span></a>
-  <nav>
-    <a href="/today" class="{{ 'on' if p == '/today' }}">오늘</a>
-    <a href="/" class="{{ 'on' if p == '/' }}">이번 주</a>
-    <a href="/calendar" class="{{ 'on' if p.startswith('/calendar') }}">근무 달력</a>
-    <a href="/tasks" class="{{ 'on' if p.startswith('/tasks') }}">과제</a>
-    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">설정</a>
-    <a href="/sentences" class="{{ 'on' if p.startswith('/sentences') }}">영어 문장</a>
-  </nav>
-  <a href="/account" class="account-link {{ 'on' if p.startswith('/account') }}">계정</a>
-</div></header>
+{% include "partials/header.html" %}
 {% endblock %}
 <main>{% block content %}{% endblock %}</main>
 {% if self.header() | trim %}
