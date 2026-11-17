@@ -1,15 +1,25 @@
-{# 근무 유형별 공부 시간·알림 시각 간단 입력 표 (온보딩). 필요: shifts, (back) #}
-<table class="list">
-  <tr><th>근무 유형</th><th>공부 가능 시간(분)</th><th>알림 시각</th><th></th></tr>
-  {% for s in shifts %}
-  <tr>
-    <td>
-      <span class="shift-dot" style="--dot: {{ s.color_hex or 'var(--border-grid)' }}"></span>
-      {{ s.label }}{% if s.is_rest_day %} <span class="tag accent">쉬는 날</span>{% endif %}
-    </td>
-    <td><input type="number" min="0" max="1440" step="5" name="{{ s.code }}_minutes" value="{{ s.study_minutes }}" style="width:96px" inputmode="numeric"></td>
-    <td><input type="time" name="{{ s.code }}_time" value="{{ s.send_time.strftime('%H:%M') }}"></td>
-    <td style="text-align:right"><a href="/settings/shifts/{{ s.id }}?back={{ back or '/settings' }}">편집</a></td>
-  </tr>
-  {% endfor %}
+{# 근무 유형별 공부 시간·알림 시각 간단 입력 표 (온보딩). 유형 하나당 한 줄, 이름을 누르면 편집. 필요: shifts, (back) #}
+<table class="list shift-table quick">
+  <thead>
+    <tr>
+      <th class="name">근무 유형 <span class="fine">(눌러서 편집)</span></th>
+      <th class="in-min">공부(분)</th>
+      <th class="in-time">알림 시각</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in shifts %}
+    <tr>
+      <td class="name">
+        <div class="name-line">
+          <span class="shift-dot" style="background: {{ s.color_hex or 'transparent' }}"></span>
+          <a class="label" href="/settings/shifts/{{ s.id }}?back={{ back or '/settings' }}" title="{{ s.label }} 편집">{{ s.label }}</a>
+          {% if s.is_rest_day %}<span class="tag accent">쉬는 날</span>{% endif %}
+        </div>
+      </td>
+      <td class="in-min"><input type="number" min="0" max="1440" step="5" name="{{ s.code }}_minutes" value="{{ s.study_minutes }}" inputmode="numeric" aria-label="{{ s.label }} 공부 가능 시간(분)"></td>
+      <td class="in-time"><input type="time" name="{{ s.code }}_time" value="{{ s.send_time.strftime('%H:%M') }}" aria-label="{{ s.label }} 알림 시각"></td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>

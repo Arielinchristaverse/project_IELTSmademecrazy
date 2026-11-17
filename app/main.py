@@ -44,6 +44,25 @@ app = FastAPI(title="교대근무 공부 스케줄러", lifespan=lifespan)
 
 
 @app.middleware("http")
+async def static_cache_headers(request: Request, call_next):
+    """정적 파일 캐시 규칙.
+    - 버전이 붙은 주소(?v=…): 내용이 바뀌면 주소도 바뀌므로 1년 캐시
+    - 그 밖의 CSS/JS: 매번 서버에 바뀌었는지 확인 (ETag 로 304 응답이라 가볍다)
+    - 글꼴·아이콘: 하루 캐시
+    헤더가 없으면 iOS Safari 가 임의로 오래 캐시해서, 배포 후에도 예전 화면이 보일 수 있다."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/") and response.status_code in (200, 304):
+        if "v" in request.query_params:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path.endswith((".css", ".js")):
+            response.headers["Cache-Control"] = "no-cache"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
+@app.middleware("http")
 async def require_login(request: Request, call_next):
     if not auth.is_public(request.url.path) and not request.session.get("uid"):
         return RedirectResponse("/login", status_code=303)

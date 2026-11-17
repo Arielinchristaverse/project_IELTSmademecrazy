@@ -210,14 +210,27 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .seg label.disabled { color: var(--text-secondary); opacity: 0.5; cursor: not-allowed; }
 
 /* 근무 유형 */
-.shift-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--text-primary); }
-.shift-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-grid); }
-.shift-row form { margin: 0; }
-.shift-row.is-archived { opacity: 0.7; }
-.shift-main { flex: 1; min-width: 0; }
-.shift-name { font-weight: 600; }
-.shift-meta { font-size: 13px; color: var(--text-secondary); }
-.shift-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--dot); flex: none; vertical-align: 0; margin-right: 4px; }
+/* 근무 유형 표: 유형 하나당 한 줄 (이름이 길면 말줄임) */
+.shift-table { table-layout: fixed; }
+.shift-table th, .shift-table td { padding: 12px 6px; }
+.shift-table th:first-child, .shift-table td:first-child { padding-left: 0; }
+.shift-table th:last-child, .shift-table td:last-child { padding-right: 0; }
+.shift-table .name { font-weight: 600; }
+/* 이름만 말줄임하고, 색 점과 '쉬는 날' 표시는 항상 보이게 */
+.shift-table .name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.shift-table .name-line .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.shift-table .name-line .tag, .shift-table .name-line .fine { flex: none; font-weight: 500; white-space: nowrap; }
+.shift-table .name-line .shift-dot { margin-right: 2px; }
+.shift-table .num { width: 64px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.shift-table .act { width: 48px; text-align: right; white-space: nowrap; }
+.shift-table .act form { display: inline; margin: 0; }
+.shift-table.is-archived { border-top: 0; }
+.shift-table.is-archived .act { width: 150px; }
+.shift-table.is-archived .name { color: var(--text-secondary); }
+.shift-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; vertical-align: 0; margin-right: 8px;
+  background: var(--dot, transparent); box-shadow: inset 0 0 0 1px var(--border-grid);
+}
 .btn.small { padding: 7px 12px; font-size: 13px; }
 details.archived { margin-top: 20px; }
 details.archived summary { cursor: pointer; font-size: 13px; color: var(--text-secondary); padding: 6px 0; }
@@ -301,3 +314,10 @@ details.archived summary { cursor: pointer; font-size: 13px; color: var(--text-s
   .summary { grid-template-columns: 1fr; gap: 16px; }
   .stat { font-size: 48px; }
 }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* 온보딩 간단 입력 표: 입력칸을 내용 크기에 맞춰 한 줄에 */
+.shift-table.quick .in-min { width: 68px; }
+.shift-table.quick .in-time { width: 132px; }
+.shift-table.quick th.name .fine { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.shift-table.quick input { width: 100%; padding: 8px 6px; font-size: 15px; }
+.shift-table.quick th.in-min, .shift-table.quick th.in-time { white-space: nowrap; }

@@ -59,7 +59,10 @@ def test_add_edit_archive_unarchive_delete(db, user):
         assert s.position == 4  # 프리셋 뒤
 
         html = c.get("/settings").text
-        assert "단축근무" in html and "공부 90분" in html and "알림 14:00" in html
+        table = html.split('class="list shift-table"')[1].split("</table>")[0]
+        assert table.count("<tr>") == 1 + 5  # 머리글 + 유형 5개 (한 유형 = 한 줄)
+        row = next(r for r in table.split("<tr>") if "단축근무" in r)
+        assert "90분" in row and "14:00" in row and "쉬는 날" in row and "편집" in row
 
         r = c.post(f"/settings/shifts/{s.id}", data=form(label="단축", study_minutes="30", is_rest_day=None))
         db.refresh(s)

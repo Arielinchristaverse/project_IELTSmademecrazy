@@ -96,3 +96,22 @@ def test_fonts_are_self_hosted():
         assert first.startswith("/static/fonts/pretendard/") and c.get(first).status_code == 200
         assert c.get("/static/fonts/cormorant/cormorant-garamond-latin-500-italic.woff2").status_code == 200
         assert "googleapis" not in c.get("/static/style.css").text and "jsdelivr" not in c.get("/static/style.css").text
+
+
+def test_static_assets_are_versioned_and_cache_headers_set(db, user):
+    """배포 후 iOS Safari 가 예전 style.css 를 계속 쓰지 않도록: 내용 기반 버전 주소 + 캐시 헤더."""
+    import re
+
+    from tests.conftest import login
+
+    with TestClient(app) as c:
+        login(c)
+        html = c.get("/settings").text
+        css = re.search(r'href="(/static/style\.css\?v=[0-9a-f]{10})"', html).group(1)
+        assert re.search(r'src="/static/app\.js\?v=[0-9a-f]{10}"', html)
+        assert re.search(r'src="/static/push\.js\?v=[0-9a-f]{10}"', html)
+        assert "immutable" in c.get(css).headers["cache-control"]  # 버전 주소는 길게 캐시
+        assert c.get("/static/style.css").headers["cache-control"] == "no-cache"  # 버전 없으면 매번 확인
+        assert "max-age=86400" in c.get("/static/icons/icon-192.png").headers["cache-control"]
+        login_html = TestClient(app).get("/login").text
+        assert re.search(r'src="/static/login\.js\?v=[0-9a-f]{10}"', login_html)

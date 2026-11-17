@@ -1,20 +1,27 @@
-{# 근무 유형 목록 카드. 필요: all_shifts, used_codes, max_shifts, back #}
+{# 근무 유형 목록: 유형 하나당 한 줄의 표. 필요: all_shifts, used_codes, max_shifts, back #}
 {% set active = all_shifts | rejectattr('is_archived') | list %}
 {% set archived = all_shifts | selectattr('is_archived') | list %}
-<ul class="shift-list">
-  {% for s in active %}
-  <li class="shift-row">
-    <span class="shift-dot" style="--dot: {{ s.color_hex or 'var(--border-grid)' }}"></span>
-    <div class="shift-main">
-      <div class="shift-name">{{ s.label }}{% if s.is_rest_day %} <span class="tag accent">쉬는 날</span>{% endif %}</div>
-      <div class="shift-meta">
-        공부 {{ s.study_minutes }}분 · 알림 {{ s.send_time.strftime('%H:%M') }}
-      </div>
-    </div>
-    <a class="btn ghost small" href="/settings/shifts/{{ s.id }}?back={{ back }}">편집</a>
-  </li>
-  {% endfor %}
-</ul>
+<table class="list shift-table">
+  <thead>
+    <tr><th class="name">근무 유형</th><th class="num">공부</th><th class="num">알림</th><th class="act"><span class="visually-hidden">편집</span></th></tr>
+  </thead>
+  <tbody>
+    {% for s in active %}
+    <tr>
+      <td class="name">
+        <div class="name-line">
+          <span class="shift-dot" style="background: {{ s.color_hex or 'transparent' }}"></span>
+          <span class="label" title="{{ s.label }}">{{ s.label }}</span>
+          {% if s.is_rest_day %}<span class="tag accent">쉬는 날</span>{% endif %}
+        </div>
+      </td>
+      <td class="num">{{ s.study_minutes }}분</td>
+      <td class="num">{{ s.send_time.strftime('%H:%M') }}</td>
+      <td class="act"><a href="/settings/shifts/{{ s.id }}?back={{ back }}">편집</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 <div class="row" style="margin-top:12px">
   {% if active | length < max_shifts %}
   <a class="btn ghost" href="/settings/shifts/new?back={{ back }}">+ 근무 유형 추가</a>
@@ -24,20 +31,26 @@
 {% if archived %}
 <details class="archived">
   <summary>보관된 유형 {{ archived | length }}개</summary>
-  <ul class="shift-list">
-    {% for s in archived %}
-    <li class="shift-row is-archived">
-      <span class="shift-dot" style="--dot: {{ s.color_hex or 'var(--border-grid)' }}"></span>
-      <div class="shift-main">
-        <div class="shift-name">{{ s.label }} <span class="tag">보관됨</span></div>
-        <div class="shift-meta">{% if s.code in used_codes %}달력에 기록이 남아 있어요{% else %}달력에서 쓰지 않음{% endif %}</div>
-      </div>
-      <form method="post" action="/settings/shifts/{{ s.id }}/unarchive"><input type="hidden" name="back" value="{{ back }}"><button class="link">보관 해제</button></form>
-      {% if s.code not in used_codes %}
-      <form method="post" action="/settings/shifts/{{ s.id }}/delete"><input type="hidden" name="back" value="{{ back }}"><button class="link">삭제</button></form>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
+  <table class="list shift-table is-archived">
+    <tbody>
+      {% for s in archived %}
+      <tr>
+        <td class="name">
+          <div class="name-line">
+            <span class="shift-dot" style="background: {{ s.color_hex or 'transparent' }}"></span>
+            <span class="label" title="{{ s.label }}">{{ s.label }}</span>
+            <span class="fine">{{ '달력 기록 있음' if s.code in used_codes else '미사용' }}</span>
+          </div>
+        </td>
+        <td class="act">
+          <form method="post" action="/settings/shifts/{{ s.id }}/unarchive"><input type="hidden" name="back" value="{{ back }}"><button class="link">보관 해제</button></form>
+          {% if s.code not in used_codes %}
+          <form method="post" action="/settings/shifts/{{ s.id }}/delete"><input type="hidden" name="back" value="{{ back }}"><button class="link">삭제</button></form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </details>
 {% endif %}
