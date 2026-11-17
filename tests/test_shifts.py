@@ -201,7 +201,7 @@ def test_custom_shift_drives_capacity_and_notify_time_on_its_date(db, user):
     assert notify_due(db, user, datetime.combine(MON + timedelta(1), time(16, 0))) == []
 
 
-# ------------------------------------------------------------------ 쉬는 날 기준 주말 보충
+# ------------------------------------------------------------------ 쉬는 날 기준 보충 (요일 무관)
 def _week_with(db, user, wed_code):
     codes = ["DAY", "DAY", wed_code, "DAY", "DAY", "DAY", "DAY"]
     for i, code in enumerate(codes):
@@ -237,7 +237,10 @@ def test_off_without_rest_flag_is_a_weekday(db, user):
     prepare_day(db, user, wed)
     assert makeups_on(db, user, wed) == []  # 쉬는 날이 아니면 보충 안 함
     prepare_day(db, user, sun)
-    assert [m.makeup_of_id for m in makeups_on(db, user, sun)] == [missed.id]  # 일요일은 여전히 주말
+    assert makeups_on(db, user, sun) == []  # 일요일도 다른 요일과 같다: 쉬는 날 유형이 아니면 보충 안 함
+    from app.services.allocator import pending_items
+
+    assert missed.id in [p.id for p in pending_items(db, user.id)]  # 보류는 다음 쉬는 날까지 남는다
 
 
 # ------------------------------------------------------------------ 수정 시 내일부터 재계산

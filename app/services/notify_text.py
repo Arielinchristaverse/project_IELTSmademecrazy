@@ -1,19 +1,52 @@
 """알림 문구 모음. 문구를 바꿀 때는 이 파일만 고치면 된다.
 
-{count} = 과제 수, {minutes} = 총 분, {m}/{d}/{wd} = 월/일/요일.
-푸시 본문은 짧게(200바이트 미만) 유지한다. 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다.
+푸시
+- 제목은 항상 PUSH_TITLE. 본문은 아래 묶음에서 날짜·사용자별로 하나를 고른다(pick).
+  과제 개수·시간은 넣지 않는다 — 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다.
+- 문구는 한 줄 30자 이내, 푸시 내용 전체는 200바이트 미만으로 유지한다(테스트로 확인).
+- 순환: DB 에 기록하지 않고 (날짜 ordinal + user_id) % 묶음 길이 로 계산한다.
+  같은 날·같은 사용자는 재시도·서버 재시작·여러 기기에서도 같은 문구, 다음 날에는 다음 문구.
+- 서비스 워커(app/static/sw.js)의 기본 문구는 PUSH_TITLE / FALLBACK_BODY 와 같아야 한다(테스트로 확인).
+
+메일: {count} = 과제 수, {m}/{d}/{wd} = 월/일/요일.
 """
+from datetime import date
 
-APP_TITLE = "afterwork"
-TEST_SUFFIX = " (테스트)"
+PUSH_TITLE = "afterwork."
 
-# 정기 알림 (근무 유형의 알림 시각)
-DAILY_PUSH_BODY = "오늘의 공부 과제 {count}개 · 총 {minutes}분"
-DAILY_PUSH_EMPTY = "오늘 배정된 과제가 없습니다."
+# 근무한 날 - 정기 알림 ('쉬는 날'이 아닌 근무 유형의 날)
+WORKDAY_DAILY = (
+    "오늘도 수고했어요. 이제 나를 위한 시간이에요",
+    "퇴근을 축하해요. 나의 다음 페이지를 열어 볼까요",
+    "근무는 끝, 이제 내 차례예요",
+    "오늘 할 수 있는 만큼만 준비했어요",
+    "작은 한 걸음이 다음 페이지를 만들어요",
+)
+
+# 쉬는 날 - 정기 알림 ('쉬는 날'로 체크한 근무 유형의 날)
+RESTDAY_DAILY = (
+    "쉬는 날, 나를 위한 시간이 열렸어요",
+    "여유 있게, 작은 실행 하나부터 시작해요",
+    "오늘은 가볍게, 할 만큼만 해요",
+)
+
+# 재알림 - 아직 기록하지 않은 과제가 남은 날
+REMIND = (
+    "오늘의 한 걸음이 아직 남아 있어요",
+    "늦지 않았어요. 할 수 있는 만큼만 해요",
+)
+
+# 푸시 내용이 비었거나 깨졌을 때 서비스 워커가 띄우는 기본 문구
+FALLBACK_BODY = WORKDAY_DAILY[0]
+
+
+def pick(phrases: tuple[str, ...], day: date, user_id: int) -> str:
+    """날짜와 사용자로 묶음 안의 문구를 고른다 (저장 없이 항상 같은 결과)."""
+    return phrases[(day.toordinal() + user_id) % len(phrases)]
+
+
+# 메일 (이번 변경 범위 밖: 기존 문구 유지)
 DAILY_MAIL_SUBJECT = "[afterwork] {m}/{d}({wd}) 오늘의 과제 {count}개"
 DAILY_MAIL_HEADING = "오늘의 과제"
-
-# 재알림 (근무 유형의 재알림 시각, 아직 기록하지 않은 과제가 있을 때) — 임시 문구
-REMIND_PUSH_BODY = "오늘 남은 과제 {count}개"
 REMIND_MAIL_SUBJECT = "[afterwork] 오늘 남은 과제 {count}개"
 REMIND_MAIL_HEADING = "아직 기록하지 않은 과제"

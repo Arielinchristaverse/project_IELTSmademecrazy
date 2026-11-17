@@ -1,4 +1,4 @@
-"""'오늘' 화면: 메일과 같은 내용 · 로그인 상태에서 바로 달성/미달성 · 주말 재배정 하루 1회."""
+"""'오늘' 화면: 메일과 같은 내용 · 로그인 상태에서 바로 달성/미달성 · 쉬는 날 재배정 하루 1회."""
 import os
 from datetime import date, datetime, time, timedelta
 
@@ -45,7 +45,7 @@ def test_today_shows_mail_content_and_records_directly(db, user, on_day):
         html = c.get("/today").text
         assert "Today · 11.02 MON" in html and "11월 2일(월)" in html and "데이 근무일" in html
         assert "이번 주 진척도" in html and progress_of(html) == 0
-        assert "주말 보충 리스트" in html and "보류된 과제가 없습니다" in html
+        assert "쉬는 날 보충 리스트" in html and "보류된 과제가 없습니다" in html
         assert "There is" in html or "“" in html  # 영어 문장
         todays = db.scalars(select(Assignment).where(Assignment.user_id == user.id, Assignment.date == MON)).all()
         assert todays and all(f"/assignments/{a.id}/status" in html for a in todays)
@@ -60,8 +60,8 @@ def test_today_shows_mail_content_and_records_directly(db, user, on_day):
         if missed:
             c.post(f"/assignments/{missed.id}/status", data={"status": "missed", "back": "/today"})
             html = c.get("/today").text
-            assert "미달성 · 주말 보충" in html
-            pending_part = html.split("주말 보충 리스트")[1]
+            assert "미달성 · 쉬는 날 보충" in html
+            pending_part = html.split("쉬는 날 보충 리스트")[1]
             assert missed.task.name in pending_part  # 보류 목록으로 이동
 
             c.post(f"/assignments/{missed.id}/status", data={"status": "scheduled", "back": "/today"})  # 되돌리기

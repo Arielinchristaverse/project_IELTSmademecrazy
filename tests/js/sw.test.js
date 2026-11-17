@@ -47,7 +47,8 @@ const data = (v) => ({ json: () => JSON.parse(v), text: () => v });
   await sw.fire("push", { data: null });
   assert.strictEqual(sw.shown.length, 2);
   assert.strictEqual(sw.shown[0].body, "not json");
-  assert.strictEqual(sw.shown[1].body, "오늘의 공부를 확인하세요.");
+  assert.strictEqual(sw.shown[1].body, "오늘도 수고했어요. 이제 나를 위한 시간이에요");
+  assert.strictEqual(sw.shown[1].title, "afterwork.");
   assert.strictEqual(sw.shown[1].data.url, "/today");
 
   // 3) 외부 주소는 무시하고 /today

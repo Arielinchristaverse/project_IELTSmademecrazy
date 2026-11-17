@@ -10,6 +10,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.main import app
 from app.models import CalendarDay, NotifyLog, PushSubscription, ShiftType, Task
+from app.services import notify_text as T
 from app.services import push
 from app.services.daily import notify_due, run_due
 from app.services.users import get_or_create_user
@@ -133,7 +134,7 @@ def test_payload_is_short_and_points_to_today(db, user, pusher):
     assert out and out[0].startswith("push: 1대")
     data = json.loads(pusher["calls"][0]["data"])
     assert data["url"] == "/today"
-    assert data["body"].startswith("오늘의 공부 과제 ") and "· 총 " in data["body"]
+    assert data["title"] == T.PUSH_TITLE and data["body"] == T.pick(T.WORKDAY_DAILY, MON, user.id)  # 근무한 날 문구
     assert len(pusher["calls"][0]["data"].encode()) < 200
 
 
@@ -213,7 +214,8 @@ def test_test_push_endpoint(db, user, pusher):
         add_sub(db, user, "https://web.push.apple.com/me")
         r = c.post("/push/test").json()
         assert r["ok"] and "1대" in r["message"]
-        assert "(테스트)" in json.loads(pusher["calls"][-1]["data"])["title"]
+        sent = json.loads(pusher["calls"][-1]["data"])
+        assert sent["title"] == T.PUSH_TITLE and sent["body"] in T.WORKDAY_DAILY  # 테스트도 같은 방식
 
 
 def test_generated_vapid_keys_sign():

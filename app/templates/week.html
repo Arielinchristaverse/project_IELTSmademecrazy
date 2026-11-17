@@ -41,16 +41,16 @@
 
 <div class="week">
 {% for d in days %}
-  <div class="day {{ 'today' if d.is_today }} {{ 'weekend' if d.weekend }}">
+  <div class="day {{ 'today' if d.is_today }} {{ 'rest' if d.rest }}">
     <div class="head">
       <b>{{ d.date.month }}/{{ d.date.day }} {{ WEEKDAYS_KO[d.date.weekday()] }}</b>
       <span>
         {% if d.cal and d.cal.excluded %}<span class="tag">제외</span>
-        {% elif d.cal and d.cal.shift %}<span class="tag {{ 'accent' if d.weekend }}">{% if d.cal.shift.color_hex %}<span class="shift-dot" style="--dot: {{ d.cal.shift.color_hex }}"></span>{% endif %}{{ d.cal.shift.label }}</span>
+        {% elif d.cal and d.cal.shift %}<span class="tag {{ 'accent' if d.rest }}">{% if d.cal.shift.color_hex %}<span class="shift-dot" style="--dot: {{ d.cal.shift.color_hex }}"></span>{% endif %}{{ d.cal.shift.label }}</span>
         {% else %}<span class="tag">미입력</span>{% endif %}
       </span>
     </div>
-    <div class="cap">{{ d.used }} / {{ d.capacity }}분{% if d.weekend %} · 보충일{% endif %}</div>
+    <div class="cap">{{ d.used }} / {{ d.capacity }}분{% if d.rest %} · 보충일{% endif %}</div>
     {% for a in d.assignments %}
       <div class="item {{ a.status }}">
         <div class="name">{% if a.kind == 'makeup' %}<span class="tag accent">보충</span> {% endif %}{{ a.task.name }}</div>
@@ -65,7 +65,7 @@
 {% endfor %}
 </div>
 
-<h2>보류 목록 (주말 보충 대상)</h2>
+<h2>보류 목록 (쉬는 날 보충 대상)</h2>
 {% if pending %}
 <table class="list">
   <tr><th>과제</th><th>과목</th><th>소요</th><th>원래 날짜</th></tr>

@@ -93,7 +93,7 @@ class ShiftType(Base):
     send_time: Mapped[time] = mapped_column(Time, default=time(7, 0))
     # 재알림 시각: 아직 기록하지 않은 과제가 있으면 같은 날 이 시각에 한 번 더 알림. 비어 있으면 재알림 없음
     remind_time: Mapped[time | None] = mapped_column(Time, nullable=True)
-    is_rest_day: Mapped[bool] = mapped_column(Boolean, default=False)  # 쉬는 날 = 주말 보충 기준
+    is_rest_day: Mapped[bool] = mapped_column(Boolean, default=False)  # 쉬는 날 = 보충 배정 기준 (요일과 무관)
     color: Mapped[str | None] = mapped_column(String(16), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

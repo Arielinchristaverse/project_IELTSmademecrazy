@@ -4,8 +4,9 @@
 - generate_week(): DB에서 입력을 모아 allocate()를 호출하고 결과를 저장한다.
 
 용어
-- 평일: 오프가 아니고 일요일도 아닌 날
-- 주말: 근무 유형이 오프인 날 + 일요일 (보류 과제를 보충하는 날)
+- 쉬는 날(보충일): 그날 근무 유형이 '쉬는 날'로 체크된 날. 요일과 무관하다(일요일도 다른 요일과 같다).
+  보류 과제를 먼저 보충하는 날.
+- 그 밖의 날: 공부 가능 시간 안에서 정규 과제만 배정
 - 보류(pending): 미달성 처리된 정규 배정 중 아직 보충 배정(예정/달성)이 없는 것
 """
 from __future__ import annotations
@@ -35,7 +36,7 @@ class TaskInfo:
 class DaySlot:
     date: date
     capacity: int  # 이미 고정된 배정을 뺀 남은 시간(분)
-    is_weekend: bool
+    is_rest_day: bool  # 보류 과제를 먼저 보충하는 날
     kept_task_ids: set[int] = field(default_factory=set)  # 이 날 이미 고정된 과제
     kept_subjects: list[str] = field(default_factory=list)
 
@@ -80,8 +81,8 @@ def allocate(
         today_subjects = list(day.kept_subjects)
         placed: list[Placement] = []
 
-        # 1) 주말: 보류 과제를 오래된 순으로 먼저 배정
-        if day.is_weekend:
+        # 1) 쉬는 날: 보류 과제를 오래된 순으로 먼저 배정
+        if day.is_rest_day:
             leftover = []
             for item in pending_queue:
                 if item.task_id not in today_ids and item.duration <= cap:
@@ -169,9 +170,9 @@ def day_capacity(cal: CalendarDay | None) -> int:
     return cal.shift.study_minutes
 
 
-def is_weekend_day(d: date, cal: CalendarDay | None) -> bool:
-    """주말(보충일) = '쉬는 날'로 표시한 근무 유형의 날 + 일요일."""
-    return d.weekday() == 6 or bool(cal is not None and cal.shift is not None and cal.shift.is_rest_day)
+def is_rest_day(d: date, cal: CalendarDay | None) -> bool:
+    """보충일 = 그날 근무 유형이 '쉬는 날'로 체크된 날. 요일(일요일 포함)은 따지지 않는다."""
+    return bool(cal is not None and cal.shift is not None and cal.shift.is_rest_day)
 
 
 def get_calendar_day(db: Session, uid: int, d: date) -> CalendarDay | None:
@@ -269,7 +270,7 @@ def generate_week(db: Session, uid: int, week_start: date, today: date) -> Week:
             DaySlot(
                 date=d,
                 capacity=max(day_capacity(cal) - used_min, 0),
-                is_weekend=is_weekend_day(d, cal),
+                is_rest_day=is_rest_day(d, cal),
                 kept_task_ids={a.task_id for a in kept_today},
                 kept_subjects=[a.task.subject for a in kept_today],
             )
@@ -283,8 +284,8 @@ def generate_week(db: Session, uid: int, week_start: date, today: date) -> Week:
             )
         )
     )
-    # 보류 과제는 '이번 주' 주말에만 배정한다. 미래 주를 미리 만들 때 보류를 가져가 버리면
-    # 이번 주 오프/일요일에 보충할 기회가 사라지기 때문. 미래 주는 그 주 주말 알림 직전에 재계산된다.
+    # 보류 과제는 '이번 주' 쉬는 날에만 배정한다. 미래 주를 미리 만들 때 보류를 가져가 버리면
+    # 이번 주 쉬는 날에 보충할 기회가 사라지기 때문. 미래 주는 그 주 쉬는 날 알림 직전에 재계산된다.
     pend = (
         [PendingItem(a.id, a.task_id, a.task.duration_min) for a in pending_items(db, uid)]
         if week_start <= week_start_of(today)

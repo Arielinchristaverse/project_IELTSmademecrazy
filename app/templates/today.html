@@ -33,7 +33,7 @@
           <button class="link">미달성</button>
         </form>
         {% else %}
-        <span class="state">{{ '달성' if a.status == 'done' else '미달성 · 주말 보충' }}</span>
+        <span class="state">{{ '달성' if a.status == 'done' else '미달성 · 쉬는 날 보충' }}</span>
         {% if a.status == 'missed' %}
         <form method="post" action="/assignments/{{ a.id }}/status">
           <input type="hidden" name="status" value="scheduled"><input type="hidden" name="back" value="/today">
@@ -62,7 +62,7 @@
     {% include "partials/meter.html" %}
   </div>
 
-  <h2>주말 보충 리스트</h2>
+  <h2>쉬는 날 보충 리스트</h2>
   {% if pending %}
   <ul class="plain">
     {% for p in pending %}

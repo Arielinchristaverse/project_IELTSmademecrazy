@@ -57,7 +57,7 @@
     {% set rest = (v.get('is_rest_day') == 'on') if values else (shift.is_rest_day if shift else false) %}
     <label class="check-line">
       <input type="checkbox" name="is_rest_day" {{ 'checked' if rest }}>
-      <span><b>쉬는 날</b><br><span class="fine">체크하면 이 유형의 날과 일요일에 못 한 과제를 먼저 보충해요.</span></span>
+      <span><b>쉬는 날</b><br><span class="fine">체크하면 이 유형의 날에 못 한 과제를 먼저 보충해요.</span></span>
     </label>
 
     <fieldset class="field">

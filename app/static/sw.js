@@ -5,6 +5,9 @@
  * - 알림 액션 버튼은 쓰지 않는다 (iOS 미지원). 오프라인 캐시도 하지 않는다.
  */
 const DEFAULT_URL = "/today";
+// 기본 문구: app/services/notify_text.py 의 PUSH_TITLE / FALLBACK_BODY 와 같아야 한다 (테스트로 확인)
+const DEFAULT_TITLE = "afterwork.";
+const DEFAULT_BODY = "오늘도 수고했어요. 이제 나를 위한 시간이에요";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -21,9 +24,9 @@ self.addEventListener("push", (event) => {
   } catch (e) {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "afterwork";
+  const title = data.title || DEFAULT_TITLE;
   const options = {
-    body: data.body || "오늘의 공부를 확인하세요.",
+    body: data.body || DEFAULT_BODY,
     icon: "/static/icons/icon-192.png",
     badge: "/static/icons/badge-72.png",
     tag: data.tag || "daily",

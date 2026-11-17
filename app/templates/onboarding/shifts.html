@@ -10,7 +10,7 @@
   {% include "partials/shift_table.html" %}
   <p class="row" style="margin-top:12px">
     {% if shifts | length < max_shifts %}<a class="btn ghost" href="/settings/shifts/new?back=/onboarding/shifts">+ 근무 유형 추가</a>{% endif %}
-    <span class="fine">'쉬는 날' 유형의 날과 일요일에는 못 한 과제를 먼저 보충해요.</span>
+    <span class="fine">'쉬는 날' 유형의 날에는 못 한 과제를 먼저 보충해요.</span>
   </p>
   <button class="wide">다음</button>
 </form>

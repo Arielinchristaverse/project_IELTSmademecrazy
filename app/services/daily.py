@@ -27,7 +27,7 @@ from .allocator import (
     ensure_week,
     generate_week,
     get_calendar_day,
-    is_weekend_day,
+    is_rest_day,
     pending_items,
     week_start_of,
 )
@@ -74,13 +74,13 @@ def day_assignments(db: Session, uid: int, d: date) -> list[Assignment]:
 
 def prepare_day(db: Session, user: User, d: date) -> list[Assignment]:
     """알림/오늘 화면 직전 처리: 지난 배정 자동 미달성 → 주간 배정 확인 →
-    주말(오프/일요일)이면 보충 재배정. 재배정은 하루 1회만 (화면을 열 때마다 바뀌지 않도록)."""
+    쉬는 날이면 보충 재배정. 재배정은 하루 1회만 (화면을 열 때마다 바뀌지 않도록)."""
     auto_miss_past(db, user.id, d)
     ensure_week(db, user.id, d, d)
     last = user.last_prepared_date
     if last != d:
         cal = get_calendar_day(db, user.id, d)
-        if is_weekend_day(d, cal):
+        if is_rest_day(d, cal):
             generate_week(db, user.id, week_start_of(d), d)
         # 영어 문장은 날짜가 넘어갈 때 한 번만 다음 문장으로 → 그날의 메일·푸시·오늘 화면이 같은 문장
         if last is not None and d > last:
@@ -147,10 +147,18 @@ def build_mail(db: Session, user: User, d: date, assignments: list[Assignment], 
     return subject, html, "\n".join(text_lines)
 
 
-def short_summary(assignments: list[Assignment]) -> str:
-    """정기 알림 푸시 문구. 예: '오늘의 공부 과제 3개 · 총 90분'"""
-    total = sum(a.task.duration_min for a in assignments)
-    return T.DAILY_PUSH_BODY.format(count=len(assignments), minutes=total)
+def push_body(db: Session, user: User, d: date, kind: str, test: bool = False) -> str:
+    """푸시 본문: 재알림 묶음 / 쉬는 날 묶음 / 근무한 날 묶음 중에서 날짜·사용자로 고른다.
+    쉬는 날 여부는 그날 근무 유형의 '쉬는 날' 체크만으로 정한다(요일과 무관). 테스트 알림은 근무한 날 묶음."""
+    if kind == NOTIFY_REMIND:
+        phrases = T.REMIND
+    elif test:
+        phrases = T.WORKDAY_DAILY
+    else:
+        cal = get_calendar_day(db, user.id, d)
+        rest = bool(cal is not None and cal.shift is not None and cal.shift.is_rest_day)
+        phrases = T.RESTDAY_DAILY if rest else T.WORKDAY_DAILY
+    return T.pick(phrases, d, user.id)
 
 
 def remaining(assignments: list[Assignment]) -> list[Assignment]:
@@ -178,18 +186,9 @@ def _send_email(
 def _send_push(
     db: Session, user: User, d: date, assignments: list[Assignment], test: bool, kind: str = NOTIFY_DAILY
 ) -> ChannelResult:
-    """짧은 문구만 보내고, 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다.
+    """브랜드 문구만 보내고(과제 개수·시간 없음), 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다.
     재알림은 아침 알림을 대체하지 않도록 태그를 따로 쓴다."""
-    if kind == NOTIFY_REMIND:
-        body = T.REMIND_PUSH_BODY.format(count=len(assignments))
-    else:
-        body = short_summary(assignments) if assignments else T.DAILY_PUSH_EMPTY
-    data = push.payload(
-        T.APP_TITLE + (T.TEST_SUFFIX if test else ""),
-        body,
-        url="/today",
-        tag=f"{kind}-{d.isoformat()}",
-    )
+    data = push.payload(T.PUSH_TITLE, push_body(db, user, d, kind, test), url="/today", tag=f"{kind}-{d.isoformat()}")
     r = push.send_to_user(db, user, data)
     if r.total == 0:
         return ChannelResult(False, "알림을 받을 기기가 없습니다. 설정에서 '알림 켜기'를 해 주세요.", skipped=True)

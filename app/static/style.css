@@ -154,7 +154,7 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--text-primary); border-left: 1px solid var(--border-grid); }
 .day { background: var(--bg-surface); border-right: 1px solid var(--border-grid); border-bottom: 1px solid var(--border-grid); padding: 12px; min-height: 170px; }
 .day.today { box-shadow: inset 0 3px 0 var(--accent-focus); }
-.day.weekend { background: var(--bg-canvas); }
+.day.rest { background: var(--bg-canvas); }
 .day .head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-bottom: 4px; }
 .day .head b { font-size: 15px; font-weight: 700; }
 .day .cap { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
@@ -173,7 +173,6 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .cal td.other { background: var(--bg-canvas); color: var(--text-secondary); opacity: 0.6; }
 .cal td.today { box-shadow: inset 0 3px 0 var(--accent-focus); }
 .cal .num { font-size: 13px; font-weight: 700; }
-.cal .sun { color: var(--accent-ink); }
 .cal select { width: 100%; margin: 6px 0 4px; padding: 6px 4px; font-size: 13px; }
 .cal label { font-size: 12px; color: var(--text-secondary); }
 

@@ -13,7 +13,7 @@ from ..services.allocator import (
     day_capacity,
     generate_week,
     get_week,
-    is_weekend_day,
+    is_rest_day,
     pending_items,
     week_start_of,
 )
@@ -58,7 +58,7 @@ def week_page(
                 "date": d,
                 "cal": c,
                 "capacity": day_capacity(c),
-                "weekend": is_weekend_day(d, c),
+                "rest": is_rest_day(d, c),
                 "assignments": items,
                 "used": sum(a.task.duration_min for a in items),
                 "is_today": d == today,

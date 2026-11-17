@@ -3,7 +3,7 @@
   <input type="hidden" name="month" value="{{ year }}-{{ '%02d' % month }}">
   {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
   <table class="cal">
-    <tr>{% for w in WEEKDAYS_KO %}<th class="{{ 'sun' if loop.last }}">{{ w }}</th>{% endfor %}</tr>
+    <tr>{% for w in WEEKDAYS_KO %}<th>{{ w }}</th>{% endfor %}</tr>
     {% for week in weeks %}
     <tr>
       {% for d in week %}
@@ -12,7 +12,7 @@
           <td class="other"><span class="num">{{ d.day }}</span></td>
         {% else %}
           <td class="{{ 'today' if d == today }}"{% if c and c.shift and c.shift.color_hex %} style="--shift: {{ c.shift.color_hex }}"{% endif %}>
-            <span class="num {{ 'sun' if d.weekday() == 6 }}">{{ d.day }}</span>
+            <span class="num">{{ d.day }}</span>
             <select name="shift_{{ d.isoformat() }}">
               <option value="">—</option>
               {% for s in shifts if not s.is_archived or (c and c.shift_code == s.code) %}

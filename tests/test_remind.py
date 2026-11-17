@@ -64,7 +64,7 @@ def test_remind_only_when_unrecorded_tasks_remain(db, user, pusher):
     out = remind_due(db, user, at(12, 0))
     assert out and out[0].startswith("push(재알림)")
     data = json.loads(remind_calls(pusher)[0]["data"])
-    assert data["body"] == T.REMIND_PUSH_BODY.format(count=len(tasks) - 1) == f"오늘 남은 과제 {len(tasks) - 1}개"
+    assert data["title"] == T.PUSH_TITLE and data["body"] == T.pick(T.REMIND, MON, user.id)  # 재알림 묶음 문구
     assert data["url"] == "/today" and data["tag"] == f"remind-{MON.isoformat()}"
     assert len(remind_calls(pusher)[0]["data"].encode()) < 200
 
