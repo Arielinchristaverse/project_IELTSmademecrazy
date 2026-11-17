@@ -147,18 +147,15 @@ def build_mail(db: Session, user: User, d: date, assignments: list[Assignment], 
     return subject, html, "\n".join(text_lines)
 
 
-def push_body(db: Session, user: User, d: date, kind: str, test: bool = False) -> str:
-    """푸시 본문: 재알림 묶음 / 쉬는 날 묶음 / 근무한 날 묶음 중에서 날짜·사용자로 고른다.
-    쉬는 날 여부는 그날 근무 유형의 '쉬는 날' 체크만으로 정한다(요일과 무관). 테스트 알림은 근무한 날 묶음."""
+def push_body(user: User, d: date, kind: str, assignments: list[Assignment]) -> str:
+    """푸시 본문.
+    - 정기(첫) 알림·테스트 알림: 과제 요약 (예: '오늘의 공부 과제 3개 · 총 90분')
+    - 재알림: 브랜드 문구(REMIND 묶음)에서 날짜·사용자로 고른 한 줄 (과제 개수·시간 없음)"""
     if kind == NOTIFY_REMIND:
-        phrases = T.REMIND
-    elif test:
-        phrases = T.WORKDAY_DAILY
-    else:
-        cal = get_calendar_day(db, user.id, d)
-        rest = bool(cal is not None and cal.shift is not None and cal.shift.is_rest_day)
-        phrases = T.RESTDAY_DAILY if rest else T.WORKDAY_DAILY
-    return T.pick(phrases, d, user.id)
+        return T.pick(T.REMIND, d, user.id)
+    if not assignments:
+        return T.DAILY_PUSH_EMPTY
+    return T.DAILY_PUSH_BODY.format(count=len(assignments), minutes=sum(a.task.duration_min for a in assignments))
 
 
 def remaining(assignments: list[Assignment]) -> list[Assignment]:
@@ -186,9 +183,11 @@ def _send_email(
 def _send_push(
     db: Session, user: User, d: date, assignments: list[Assignment], test: bool, kind: str = NOTIFY_DAILY
 ) -> ChannelResult:
-    """브랜드 문구만 보내고(과제 개수·시간 없음), 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다.
+    """정기 알림은 과제 요약, 재알림은 브랜드 문구. 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다.
     재알림은 아침 알림을 대체하지 않도록 태그를 따로 쓴다."""
-    data = push.payload(T.PUSH_TITLE, push_body(db, user, d, kind, test), url="/today", tag=f"{kind}-{d.isoformat()}")
+    data = push.payload(
+        T.PUSH_TITLE, push_body(user, d, kind, assignments), url="/today", tag=f"{kind}-{d.isoformat()}"
+    )
     r = push.send_to_user(db, user, data)
     if r.total == 0:
         return ChannelResult(False, "알림을 받을 기기가 없습니다. 설정에서 '알림 켜기'를 해 주세요.", skipped=True)

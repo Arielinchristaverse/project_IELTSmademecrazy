@@ -1,7 +1,6 @@
-"""브랜드 푸시 문구: 묶음 선택 · 날짜별 순환 · 같은 날 고정 · 사용자별 위치 · 길이 · 기본 문구 폴백.
+"""푸시 문구: 첫 알림 = 과제 요약, 재알림 = 브랜드 문구(날짜별 순환·같은 날 고정·사용자별 위치) · 길이 · 기본 문구 폴백.
 그리고 일요일이 다른 요일과 같은 날로 취급되는지."""
 import json
-import re
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
@@ -37,20 +36,18 @@ def sent(box):
     return [json.loads(c["data"]) for c in box["calls"]]
 
 
-# ------------------------------------------------------------------ 묶음별 선택 (쉬는 날 체크 여부)
-def test_bundle_follows_rest_day_flag(db, user, pusher):
-    put(db, user, MON, "DAY")
-    put(db, user, MON + timedelta(1), "OFF")  # 프리셋 오프 = 쉬는 날
+# ------------------------------------------------------------------ 첫 알림 = 과제 요약 (브랜드 문구 없음)
+@pytest.mark.parametrize("code", ["DAY", "OFF"])  # 근무한 날이든 쉬는 날이든
+def test_first_push_is_task_summary_without_brand_phrase(db, user, pusher, code):
+    put(db, user, MON, code)
     add_sub(db, user, "https://web.push.apple.com/me")
-    for d in (MON, MON + timedelta(1)):
-        day = db.scalar(select(ShiftType).where(ShiftType.user_id == user.id, ShiftType.code == ("DAY" if d == MON else "OFF")))
-        notify_due(db, user, datetime.combine(d, day.send_time))
-    work, rest = sent(pusher)
-    assert work["title"] == rest["title"] == T.PUSH_TITLE == "afterwork."
-    assert work["body"] == T.pick(T.WORKDAY_DAILY, MON, user.id) and work["body"] in T.WORKDAY_DAILY
-    assert rest["body"] == T.pick(T.RESTDAY_DAILY, MON + timedelta(1), user.id) and rest["body"] in T.RESTDAY_DAILY
-    assert all(p["url"] == "/today" for p in (work, rest))
-    assert not re.search(r"\d+\s*(개|분)", work["body"] + rest["body"])  # 과제 개수·시간 없음
+    day = db.scalar(select(ShiftType).where(ShiftType.user_id == user.id, ShiftType.code == code))
+    notify_due(db, user, datetime.combine(MON, day.send_time))
+    (data,) = sent(pusher)
+    todays = db.scalars(select(Assignment).where(Assignment.user_id == user.id, Assignment.date == MON)).all()
+    assert data["title"] == T.PUSH_TITLE == "afterwork." and data["url"] == "/today"
+    assert data["body"] == T.DAILY_PUSH_BODY.format(count=len(todays), minutes=sum(a.task.duration_min for a in todays))
+    assert data["body"] not in T.WORKDAY_DAILY + T.RESTDAY_DAILY + T.REMIND  # 인사말은 첫 알림에 없음
 
 
 def test_remind_uses_remind_bundle(db, user, pusher):
@@ -61,16 +58,6 @@ def test_remind_uses_remind_bundle(db, user, pusher):
     daily, remind = sent(pusher)
     assert remind["title"] == T.PUSH_TITLE and remind["body"] == T.pick(T.REMIND, MON, user.id)
     assert remind["tag"].startswith("remind-") and daily["tag"].startswith("daily-")
-
-
-def test_unchecking_rest_flag_switches_to_workday_bundle(db, user):
-    off = db.scalar(select(ShiftType).where(ShiftType.user_id == user.id, ShiftType.code == "OFF"))
-    put(db, user, MON, "OFF")
-    assert push_body(db, user, MON, "daily") in T.RESTDAY_DAILY
-    off.is_rest_day = False
-    db.commit()
-    db.expire_all()
-    assert push_body(db, user, MON, "daily") in T.WORKDAY_DAILY
 
 
 # ------------------------------------------------------------------ 순환
@@ -87,20 +74,19 @@ def test_next_day_moves_to_next_phrase_and_wraps():
 
 
 def test_same_day_same_user_always_same_phrase(db, user, pusher):
-    """재호출·재시도·여러 기기에서도 같은 날 같은 사용자는 같은 문구."""
+    """재알림 문구는 재시도·여러 기기·반복 호출에서도 같은 날 같은 사용자에게 같다."""
     put(db, user, MON, "DAY")
     add_sub(db, user, "https://web.push.apple.com/a")
     add_sub(db, user, "https://fcm.googleapis.com/b")
+    notify_due(db, user, datetime.combine(MON, time(6)))
+    pusher["fail"]["https://web.push.apple.com/a"] = 503  # 첫 시도: 한 기기 실패
     pusher["fail"]["https://fcm.googleapis.com/b"] = 503
-    notify_due(db, user, datetime.combine(MON, time(6)))  # 기기 2대 (하나는 실패)
+    remind_due(db, user, datetime.combine(MON, time(12)))
     pusher["fail"].clear()
-    with TestClient(app) as c:
-        login(c)
-        c.post("/push/test")
-        c.post("/push/test")
-    daily_bodies = {p["body"] for p in sent(pusher) if p["tag"].startswith("daily-")}
-    assert len(daily_bodies) == 1  # 같은 날 정기 알림은 모든 기기·재시도에서 같은 문구
-    assert {push_body(db, user, MON, "daily") for _ in range(5)} == daily_bodies
+    remind_due(db, user, datetime.combine(MON, time(12, 11)))  # 10분 뒤 재시도 → 두 기기 성공
+    bodies = {p["body"] for p in sent(pusher) if p["tag"].startswith("remind-")}
+    assert bodies == {T.pick(T.REMIND, MON, user.id)}
+    assert {push_body(user, MON, "remind", []) for _ in range(5)} == bodies
 
 
 def test_users_have_different_positions(db, user):
@@ -121,15 +107,14 @@ def test_all_phrases_short_and_payload_under_200_bytes():
 
 
 # ------------------------------------------------------------------ 테스트 알림 · 기본 문구 폴백
-def test_test_push_uses_brand_title_and_workday_phrase(db, user, pusher):
+def test_test_push_matches_first_push_format(db, user, pusher):
     add_sub(db, user, "https://web.push.apple.com/me")
     with TestClient(app) as c:
         login(c)
         assert c.post("/push/test").json()["ok"]
     data = sent(pusher)[-1]
-    from app import clock
-
-    assert data["title"] == "afterwork." and data["body"] == T.pick(T.WORKDAY_DAILY, clock.today(), user.id)
+    assert data["title"] == "afterwork."
+    assert data["body"] == T.DAILY_PUSH_EMPTY or data["body"].startswith("오늘의 공부 과제 ")  # 과제 요약
 
 
 def test_service_worker_fallback_matches_constants():
@@ -153,7 +138,6 @@ def test_sunday_is_not_special(db, user, pusher):
     prepare_day(db, user, SUN)
     assert all(a.kind == "regular" for a in db.scalars(select(Assignment).where(Assignment.date == SUN)))
     assert first.id in [p.id for p in pending_items(db, user.id)]  # 보충은 다음 쉬는 날로 넘어감
-    assert push_body(db, user, SUN, "daily") in T.WORKDAY_DAILY  # 일요일 데이 근무 = 근무한 날 문구
 
 
 @pytest.mark.parametrize("rest_day_index", [2, 5, 6])  # 수·토·일 어느 요일이든 쉬는 날이면 보충일

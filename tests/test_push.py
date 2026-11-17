@@ -134,7 +134,8 @@ def test_payload_is_short_and_points_to_today(db, user, pusher):
     assert out and out[0].startswith("push: 1대")
     data = json.loads(pusher["calls"][0]["data"])
     assert data["url"] == "/today"
-    assert data["title"] == T.PUSH_TITLE and data["body"] == T.pick(T.WORKDAY_DAILY, MON, user.id)  # 근무한 날 문구
+    assert data["title"] == T.PUSH_TITLE
+    assert data["body"].startswith("오늘의 공부 과제 ") and "· 총 " in data["body"]  # 첫 알림 = 과제 요약
     assert len(pusher["calls"][0]["data"].encode()) < 200
 
 
@@ -215,7 +216,8 @@ def test_test_push_endpoint(db, user, pusher):
         r = c.post("/push/test").json()
         assert r["ok"] and "1대" in r["message"]
         sent = json.loads(pusher["calls"][-1]["data"])
-        assert sent["title"] == T.PUSH_TITLE and sent["body"] in T.WORKDAY_DAILY  # 테스트도 같은 방식
+        assert sent["title"] == T.PUSH_TITLE  # 테스트 알림 = 첫 알림과 같은 형식(과제 요약)
+        assert sent["body"] == T.DAILY_PUSH_EMPTY or sent["body"].startswith("오늘의 공부 과제 ")
 
 
 def test_generated_vapid_keys_sign():
