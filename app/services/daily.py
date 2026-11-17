@@ -10,7 +10,17 @@ from sqlalchemy.orm import Session
 
 from .. import clock
 from ..config import settings
-from ..models import ONBOARDING_DONE, ActionToken, Assignment, CalendarDay, NotifyLog, Sentence, User
+from ..models import (
+    NOTIFY_DAILY,
+    NOTIFY_REMIND,
+    ONBOARDING_DONE,
+    ActionToken,
+    Assignment,
+    CalendarDay,
+    NotifyLog,
+    Sentence,
+    User,
+)
 from .allocator import (
     auto_miss_past,
     day_capacity,
@@ -21,6 +31,7 @@ from .allocator import (
     pending_items,
     week_start_of,
 )
+from . import notify_text as T
 from . import push
 from .mailer import send_mail
 from .progress import week_progress
@@ -99,7 +110,8 @@ def build_today_context(
     }
 
 
-def build_mail(db: Session, user: User, d: date, assignments: list[Assignment]):
+def build_mail(db: Session, user: User, d: date, assignments: list[Assignment], kind: str = NOTIFY_DAILY):
+    """메일 내용. 재알림이면 assignments 는 아직 기록하지 않은 과제만 받는다."""
     expires = clock.now() + timedelta(days=settings.token_valid_days)
     items = []
     for a in assignments:
@@ -115,7 +127,11 @@ def build_mail(db: Session, user: User, d: date, assignments: list[Assignment]):
     db.commit()
 
     ctx = build_today_context(db, user, d, assignments)
-    ctx.update(items=items, base_url=settings.base_url)
+    ctx.update(
+        items=items,
+        base_url=settings.base_url,
+        heading=T.REMIND_MAIL_HEADING if kind == NOTIFY_REMIND else T.DAILY_MAIL_HEADING,
+    )
     html = _env.get_template("daily.html").render(**ctx)
     text_lines = [ctx["greeting"], ""]
     for it in items:
@@ -124,14 +140,22 @@ def build_mail(db: Session, user: User, d: date, assignments: list[Assignment]):
             if action in it["links"]:
                 text_lines.append(f"  {label}: {it['links'][action]}")
     text_lines.append(f"\n이번 주 진척도: {ctx['progress']}%")
-    subject = f"[afterwork] {d.month}/{d.day}({WEEKDAYS_KO[d.weekday()]}) 오늘의 과제 {len(items)}개"
+    if kind == NOTIFY_REMIND:
+        subject = T.REMIND_MAIL_SUBJECT.format(count=len(items))
+    else:
+        subject = T.DAILY_MAIL_SUBJECT.format(m=d.month, d=d.day, wd=WEEKDAYS_KO[d.weekday()], count=len(items))
     return subject, html, "\n".join(text_lines)
 
 
 def short_summary(assignments: list[Assignment]) -> str:
-    """푸시용 짧은 문구. 예: '오늘의 공부 과제 3개 · 총 90분'"""
+    """정기 알림 푸시 문구. 예: '오늘의 공부 과제 3개 · 총 90분'"""
     total = sum(a.task.duration_min for a in assignments)
-    return f"오늘의 공부 과제 {len(assignments)}개 · 총 {total}분"
+    return T.DAILY_PUSH_BODY.format(count=len(assignments), minutes=total)
+
+
+def remaining(assignments: list[Assignment]) -> list[Assignment]:
+    """아직 기록하지 않은 과제 (달성·미달성을 누른 과제는 제외)."""
+    return [a for a in assignments if a.status == "scheduled"]
 
 
 # ---------------------------------------------------------------------------
@@ -144,18 +168,27 @@ class ChannelResult:
         self.ok, self.detail, self.skipped = ok, detail, skipped
 
 
-def _send_email(db: Session, user: User, d: date, assignments: list[Assignment], test: bool) -> ChannelResult:
-    subject, html, text = build_mail(db, user, d, assignments)
+def _send_email(
+    db: Session, user: User, d: date, assignments: list[Assignment], test: bool, kind: str = NOTIFY_DAILY
+) -> ChannelResult:
+    subject, html, text = build_mail(db, user, d, assignments, kind)
     return ChannelResult(True, send_mail(user.mail_to, ("[테스트] " if test else "") + subject, html, text, owner_id=user.id))
 
 
-def _send_push(db: Session, user: User, d: date, assignments: list[Assignment], test: bool) -> ChannelResult:
-    """짧은 문구만 보내고, 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다."""
+def _send_push(
+    db: Session, user: User, d: date, assignments: list[Assignment], test: bool, kind: str = NOTIFY_DAILY
+) -> ChannelResult:
+    """짧은 문구만 보내고, 자세한 내용은 알림을 눌러 연 /today 화면에서 보여준다.
+    재알림은 아침 알림을 대체하지 않도록 태그를 따로 쓴다."""
+    if kind == NOTIFY_REMIND:
+        body = T.REMIND_PUSH_BODY.format(count=len(assignments))
+    else:
+        body = short_summary(assignments) if assignments else T.DAILY_PUSH_EMPTY
     data = push.payload(
-        "afterwork" + (" (테스트)" if test else ""),
-        short_summary(assignments) if assignments else "오늘 배정된 과제가 없습니다.",
+        T.APP_TITLE + (T.TEST_SUFFIX if test else ""),
+        body,
         url="/today",
-        tag=f"daily-{d.isoformat()}",
+        tag=f"{kind}-{d.isoformat()}",
     )
     r = push.send_to_user(db, user, data)
     if r.total == 0:
@@ -169,7 +202,7 @@ def _send_push(db: Session, user: User, d: date, assignments: list[Assignment], 
 
 
 # 채널 이름 → 발송 함수
-CHANNELS: dict[str, Callable[[Session, User, date, list[Assignment], bool], ChannelResult]] = {
+CHANNELS: dict[str, Callable[..., ChannelResult]] = {
     "email": _send_email,
     "push": _send_push,
 }
@@ -193,20 +226,17 @@ def send_test_mail(db: Session, user: User, d: date) -> str:
     return _send_email(db, user, d, assignments, test=True).detail
 
 
-def notify_due(db: Session, user: User, now: datetime) -> list[str]:
-    """한 사용자: 오늘 발송 시각이 지났으면 채널별로 하루 1회 발송 (실패 시 10분 간격 최대 3회)."""
-    d = now.date()
-    cal = get_calendar_day(db, user.id, d)
-    if day_capacity(cal) <= 0:
-        return []  # 제외일 / 근무 미입력 / 0분 → 발송 안 함
-    if now.time() < cal.shift.send_time:
-        return []
-
-    channels = user_channels(user)
-    logs = {
+def _logs(db: Session, user: User, d: date, kind: str) -> dict[str, NotifyLog]:
+    return {
         log.channel: log
-        for log in db.scalars(select(NotifyLog).where(NotifyLog.user_id == user.id, NotifyLog.date == d))
+        for log in db.scalars(
+            select(NotifyLog).where(NotifyLog.user_id == user.id, NotifyLog.date == d, NotifyLog.kind == kind)
+        )
     }
+
+
+def _due_channels(channels: list[str], logs: dict[str, NotifyLog], now: datetime) -> list[str]:
+    """하루 1회 + 실패 시 10분 간격 최대 3회 재시도 규칙으로, 지금 보낼 수단만 고른다."""
     due = []
     for ch in channels:
         log = logs.get(ch)
@@ -215,25 +245,26 @@ def notify_due(db: Session, user: User, now: datetime) -> list[str]:
         if log and log.status == "failed" and now - log.sent_at < timedelta(minutes=RETRY_MINUTES):
             continue
         due.append(ch)
-    if not due:
-        return []
+    return due
 
-    assignments = prepare_day(db, user, d)
-    if not assignments:
-        return []
+
+def _send(
+    db: Session, user: User, d: date, kind: str, due: list[str], logs: dict[str, NotifyLog],
+    assignments: list[Assignment], now: datetime,
+) -> list[str]:
     results = []
     for ch in due:
         log = logs.get(ch)
         if log is None:
-            log = NotifyLog(user_id=user.id, date=d, channel=ch, sent_at=now, status="pending", attempts=0)
+            log = NotifyLog(user_id=user.id, date=d, kind=kind, channel=ch, sent_at=now, status="pending", attempts=0)
             db.add(log)
         log.attempts += 1
         log.sent_at = now
         try:
-            r = CHANNELS[ch](db, user, d, assignments, False)
+            r = CHANNELS[ch](db, user, d, assignments, False, kind)
             log.status = "skipped" if r.skipped else ("sent" if r.ok else "failed")
             log.error = "" if r.ok else r.detail
-            results.append(f"{ch}: {r.detail}")
+            results.append(f"{ch}: {r.detail}" if kind == NOTIFY_DAILY else f"{ch}(재알림): {r.detail}")
         except Exception as e:  # noqa: BLE001
             log.status, log.error = "failed", str(e)
             results.append(f"{ch}: 발송 실패: {e}")
@@ -241,15 +272,59 @@ def notify_due(db: Session, user: User, now: datetime) -> list[str]:
     return results
 
 
+def notify_due(db: Session, user: User, now: datetime) -> list[str]:
+    """정기 알림: 오늘 유형의 알림 시각이 지났으면 수단별로 하루 1회 발송 (실패 시 10분 간격 최대 3회)."""
+    d = now.date()
+    cal = get_calendar_day(db, user.id, d)
+    if day_capacity(cal) <= 0:
+        return []  # 제외일 / 근무 미입력 / 0분 → 발송 안 함
+    if now.time() < cal.shift.send_time:
+        return []
+    logs = _logs(db, user, d, NOTIFY_DAILY)
+    due = _due_channels(user_channels(user), logs, now)
+    if not due:
+        return []
+    assignments = prepare_day(db, user, d)
+    if not assignments:
+        return []
+    return _send(db, user, d, NOTIFY_DAILY, due, logs, assignments, now)
+
+
+def remind_due(db: Session, user: User, now: datetime) -> list[str]:
+    """재알림: 오늘 유형의 재알림 시각이 지났고, 아직 기록하지 않은 과제가 남아 있으면 같은 날 한 번 더 알린다.
+
+    - 재알림 시각이 비어 있는 유형, 제외일·근무 미입력·0분인 날, 배정이 없는 날은 보내지 않는다.
+    - 수단별로, 그 수단으로 오늘 정기 알림이 실제로 발송된(sent) 경우에만 보낸다.
+    - 날짜는 now 기준이라 자정이 지나면 전날 재알림은 보내지 않는다. 서버 재시작으로 시각을 놓쳐도
+      그날 안이면 늦게라도 보낸다. 하루 1회와 재시도 규칙은 정기 알림과 같다.
+    """
+    d = now.date()
+    cal = get_calendar_day(db, user.id, d)
+    if day_capacity(cal) <= 0 or cal.shift.remind_time is None:
+        return []
+    if now.time() < cal.shift.remind_time:
+        return []
+    daily_sent = {ch for ch, log in _logs(db, user, d, NOTIFY_DAILY).items() if log.status == "sent"}
+    logs = _logs(db, user, d, NOTIFY_REMIND)
+    due = [ch for ch in _due_channels(user_channels(user), logs, now) if ch in daily_sent]
+    if not due:
+        return []
+    left = remaining(day_assignments(db, user.id, d))
+    if not left:
+        return []
+    return _send(db, user, d, NOTIFY_REMIND, due, logs, left, now)
+
+
 def run_due(db: Session, now: datetime) -> list[str]:
     """스케줄러에서 1분마다 호출: 온보딩을 마친 모든 사용자를 순회한다."""
     out = []
     users = db.scalars(select(User).where(User.onboarding_step >= ONBOARDING_DONE).order_by(User.id)).all()
     for user in users:
-        try:
-            for r in notify_due(db, user, now):
-                out.append(f"user={user.id} {r}")
-        except Exception as e:  # noqa: BLE001 — 한 사용자의 오류가 다른 사용자 발송을 막지 않게
-            db.rollback()
-            out.append(f"user={user.id} 오류: {e}")
+        for step in (notify_due, remind_due):  # 정기 → 재알림 순서
+            try:
+                for r in step(db, user, now):
+                    out.append(f"user={user.id} {r}")
+            except Exception as e:  # noqa: BLE001 — 한 사용자의 오류가 다른 사용자 발송을 막지 않게
+                db.rollback()
+                out.append(f"user={user.id} 오류: {e}")
     return out

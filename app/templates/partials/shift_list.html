@@ -3,7 +3,7 @@
 {% set archived = all_shifts | selectattr('is_archived') | list %}
 <table class="list shift-table">
   <thead>
-    <tr><th class="name">근무 유형</th><th class="num">공부</th><th class="num">알림</th><th class="act"><span class="visually-hidden">편집</span></th></tr>
+    <tr><th class="name">근무 유형</th><th class="num">공부</th><th class="num">알림</th><th class="num">재알림</th><th class="act"><span class="visually-hidden">편집</span></th></tr>
   </thead>
   <tbody>
     {% for s in active %}
@@ -17,6 +17,7 @@
       </td>
       <td class="num">{{ s.study_minutes }}분</td>
       <td class="num">{{ s.send_time.strftime('%H:%M') }}</td>
+      <td class="num">{{ s.remind_time.strftime('%H:%M') if s.remind_time else '—' }}</td>
       <td class="act"><a href="/settings/shifts/{{ s.id }}?back={{ back }}">편집</a></td>
     </tr>
     {% endfor %}

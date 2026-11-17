@@ -125,6 +125,7 @@ python -m scripts.gen_vapid mailto:you@example.com
 | 미기록 | 다음 날 준비 시점에 자동 미달성(보류) |
 | 진척도 | 이번 주 정규 과제 달성 횟수 ÷ 주당 횟수 합계 (%) — 숫자 + 진행률 바 |
 | 알림 | 사용자별 근무 유형 알림 시각에 하루 1회. 푸시/메일/둘 다 선택 |
+| 재알림 | 유형별 재알림 시각(기본: 알림 + 6시간, 자정을 넘으면 없음, 끄기 가능)에, 그날 **아직 기록하지 않은 과제**가 남아 있으면 한 번 더 (`오늘 남은 과제 N개`). 그 수단으로 정기 알림이 간 날만, 수단별 하루 1회. 서버 재시작 시 그날 안이면 늦게라도, 자정 이후에는 안 보냄. 문구는 `app/services/notify_text.py` |
 | 푸시 실패 | 404/410 이면 그 기기 구독 삭제, 그 외 10분 간격 최대 3회 재시도 |
 | 영어 문장 | 날짜가 바뀔 때 한 번 다음 문장으로 (그날 푸시·메일·오늘 화면이 같은 문장) |
 
@@ -137,7 +138,7 @@ app/
   services/  allocator(배분) · daily(준비·알림) · shifts(근무 유형) · push · mailer · progress · users · google_auth · backup
   templates/ 화면 · partials/ · onboarding/ · email/daily.html
   static/    style.css · sw.js · push.js · login.js · app.js · icons/ · fonts/
-migrations/  Alembic (0001 기준 · 0002 다중 사용자 · 0003 푸시 구독 · 0004 사용자 정의 근무 유형)
+migrations/  Alembic (0001 기준 · 0002 다중 사용자 · 0003 푸시 구독 · 0004 사용자 정의 근무 유형 · 0005 재알림)
 scripts/     migrate · backup_db · gen_vapid · make_icons.js
 tests/       pytest + tests/js (Node)
 render.yaml  .devcontainer/  .env.example

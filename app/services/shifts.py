@@ -4,6 +4,8 @@
 - 사용 중(보관 안 한) 유형은 사용자당 최대 MAX_ACTIVE_SHIFTS 개. 보관한 유형은 개수에 넣지 않는다.
 - 이름은 사용자 안에서 중복 불가 (보관한 유형 포함, 대소문자·앞뒤 공백 무시).
 - 달력에서 쓰인 유형은 삭제할 수 없고 보관만 가능하다 (DB 외래키도 막는다).
+- 재알림 시각은 비워 둘 수 있고(재알림 없음), 있으면 같은 날 알림 시각보다 늦어야 한다.
+  기본값은 알림 시각 + 6시간, 자정을 넘으면 비움.
 - 공부 가능 시간이나 쉬는 날 여부가 바뀌면 '내일부터' 배정을 다시 계산한다.
   오늘 배정은 이미 받은 알림과 어긋나지 않게 그대로 두고, 지난 날·기록한 배정도 바뀌지 않는다.
 """
@@ -18,6 +20,13 @@ from ..models import MAX_ACTIVE_SHIFTS, SHIFT_COLORS, SHIFT_NAME_MAX, CalendarDa
 from .allocator import generate_week, week_start_of
 
 MAX_STUDY_MINUTES = 24 * 60
+REMIND_AFTER_MINUTES = 6 * 60
+
+
+def default_remind(send: time) -> time | None:
+    """재알림 기본값: 알림 시각 + 6시간. 자정을 넘으면 None(재알림 없음)."""
+    total = send.hour * 60 + send.minute + REMIND_AFTER_MINUTES
+    return None if total >= 24 * 60 else time(total // 60, total % 60)
 
 
 class ShiftError(ValueError):
@@ -29,6 +38,7 @@ class ShiftInput:
     label: str
     study_minutes: int
     send_time: time
+    remind_time: time | None
     is_rest_day: bool
     color: str | None
 
@@ -61,10 +71,17 @@ def parse_form(form) -> ShiftInput:
     color = (form.get("color") or "").strip() or None
     if color is not None and color not in SHIFT_COLORS:
         raise ShiftError("색상을 목록에서 골라 주세요.")
+    send = _parse_time(form.get("send_time"), "알림 시각", required=True)
+    remind = None
+    if form.get("remind_on") in ("on", "1", "true"):
+        remind = _parse_time(form.get("remind_time"), "재알림 시각", required=True)
+        if remind <= send:
+            raise ShiftError("재알림 시각은 같은 날 알림 시각보다 늦어야 해요. (자정을 넘길 수 없어요)")
     return ShiftInput(
         label=label,
         study_minutes=minutes,
-        send_time=_parse_time(form.get("send_time"), "알림 시각", required=True),
+        send_time=send,
+        remind_time=remind,
         is_rest_day=form.get("is_rest_day") in ("on", "1", "true"),
         color=color,
     )
@@ -145,8 +162,12 @@ def update_shift(db: Session, shift: ShiftType, data: ShiftInput) -> bool:
 
 
 def set_quick(db: Session, shift: ShiftType, study_minutes: int, send_time: time) -> bool:
-    """온보딩의 간단 입력(공부 시간·알림 시각만)."""
-    data = ShiftInput(shift.label, study_minutes, send_time, shift.is_rest_day, shift.color)
+    """온보딩의 간단 입력(공부 시간·알림 시각만). 알림 시각이 재알림 시각 이후로 바뀌면
+    재알림을 '새 알림 시각 + 6시간'으로 다시 맞춘다(자정을 넘으면 끔)."""
+    remind = shift.remind_time
+    if remind is not None and remind <= send_time:
+        remind = default_remind(send_time)
+    data = ShiftInput(shift.label, study_minutes, send_time, remind, shift.is_rest_day, shift.color)
     return update_shift(db, shift, data)
 
 
@@ -176,5 +197,6 @@ def _apply(shift: ShiftType, data: ShiftInput) -> None:
     shift.label = data.label
     shift.study_minutes = data.study_minutes
     shift.send_time = data.send_time
+    shift.remind_time = data.remind_time
     shift.is_rest_day = data.is_rest_day
     shift.color = data.color

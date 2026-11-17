@@ -172,8 +172,10 @@ def test_each_user_gets_push_at_own_time(db, user, pusher):
     add_sub(db, user, "https://web.push.apple.com/a")
     add_sub(db, b, "https://web.push.apple.com/b")
 
-    def sent_to():
-        return [c["endpoint"].rsplit("/", 1)[1] for c in pusher["calls"]]
+    def sent_to():  # 정기 알림만 센다 (재알림은 tests/test_remind.py 에서 따로 검증)
+        return [
+            c["endpoint"].rsplit("/", 1)[1] for c in pusher["calls"] if json.loads(c["data"])["tag"].startswith("daily-")
+        ]
 
     run_due(db, datetime.combine(MON, time(5, 59)))
     assert sent_to() == []

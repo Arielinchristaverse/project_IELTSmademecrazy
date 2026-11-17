@@ -91,6 +91,8 @@ class ShiftType(Base):
     label: Mapped[str] = mapped_column(String(SHIFT_NAME_MAX))
     study_minutes: Mapped[int] = mapped_column(Integer, default=0)
     send_time: Mapped[time] = mapped_column(Time, default=time(7, 0))
+    # 재알림 시각: 아직 기록하지 않은 과제가 있으면 같은 날 이 시각에 한 번 더 알림. 비어 있으면 재알림 없음
+    remind_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     is_rest_day: Mapped[bool] = mapped_column(Boolean, default=False)  # 쉬는 날 = 주말 보충 기준
     color: Mapped[str | None] = mapped_column(String(16), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
@@ -200,14 +202,19 @@ class Sentence(Base):
     position: Mapped[int] = mapped_column(Integer, default=0)
 
 
+NOTIFY_DAILY = "daily"  # 정기 알림
+NOTIFY_REMIND = "remind"  # 미기록 과제 재알림
+
+
 class NotifyLog(Base):
-    """사용자·날짜·채널별 발송 기록 (하루 1회 + 재시도 관리)."""
+    """사용자·날짜·종류·수단별 발송 기록 (하루 1회 + 재시도 관리)."""
 
     __tablename__ = "notify_logs"
-    __table_args__ = (UniqueConstraint("user_id", "date", "channel"),)
+    __table_args__ = (UniqueConstraint("user_id", "date", "kind", "channel"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = _user_fk()
     date: Mapped[date] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(10), default=NOTIFY_DAILY)  # daily | remind
     channel: Mapped[str] = mapped_column(String(10))  # push | email
     sent_at: Mapped[datetime] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(10))  # pending | sent | failed | skipped

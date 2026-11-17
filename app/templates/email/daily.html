@@ -38,7 +38,7 @@
               <!-- 오늘의 과제 -->
               <tr>
                 <td style="padding:0 0 8px 0;border-bottom:1px solid #1E232A;font-size:11px;letter-spacing:1px;color:#6B7280;font-weight:bold;">
-                  오늘의 과제 · {{ total_min }}분
+                  {{ heading or '오늘의 과제' }} · {{ items | sum(attribute='a.task.duration_min') }}분
                 </td>
               </tr>
               <tr>

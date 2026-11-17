@@ -221,7 +221,8 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .shift-table .name-line .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .shift-table .name-line .tag, .shift-table .name-line .fine { flex: none; font-weight: 500; white-space: nowrap; }
 .shift-table .name-line .shift-dot { margin-right: 2px; }
-.shift-table .num { width: 64px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.shift-table .num { width: 58px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 400px) { .shift-table th, .shift-table td { padding-left: 4px; padding-right: 4px; } .shift-table .num { width: 52px; } .shift-table .act { width: 40px; } }
 .shift-table .act { width: 48px; text-align: right; white-space: nowrap; }
 .shift-table .act form { display: inline; margin: 0; }
 .shift-table.is-archived { border-top: 0; }

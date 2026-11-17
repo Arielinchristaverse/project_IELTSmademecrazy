@@ -12,6 +12,7 @@ from ..services import shifts as svc
 from ..templating import templates
 
 router = APIRouter(prefix="/settings/shifts")
+templates.env.globals["default_remind"] = svc.default_remind
 
 
 def _back(value: str | None) -> str:

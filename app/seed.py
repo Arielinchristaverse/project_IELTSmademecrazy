@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import Sentence, ShiftType, User
+from .services.shifts import default_remind
 
 # 새 사용자에게 채워지는 기본 근무 유형 4개 (온보딩·설정에서 수정 가능)
 # code, 이름, 공부 가능 시간(분), 알림 시각, 쉬는 날, 색
@@ -77,7 +78,7 @@ def seed_user(db: Session, user: User) -> None:
             db.add(
                 ShiftType(
                     user_id=user.id, code=code, label=label, study_minutes=minutes,
-                    send_time=send, is_rest_day=rest, color=color, position=pos,
+                    send_time=send, remind_time=default_remind(send), is_rest_day=rest, color=color, position=pos,
                 )
             )
     if db.scalar(select(Sentence.id).where(Sentence.user_id == user.id).limit(1)) is None:

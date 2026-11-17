@@ -29,6 +29,31 @@
       </label>
     </div>
 
+    {# 재알림: 비우면(끄면) 이 유형의 날에는 재알림을 보내지 않음 #}
+    {% if values %}
+      {% set remind_on = v.get('remind_on') == 'on' %}
+      {% set remind_val = v.get('remind_time') or '' %}
+    {% elif shift %}
+      {% set remind_on = shift.remind_time is not none %}
+      {% set dr = shift.remind_time or default_remind(shift.send_time) %}
+      {% set remind_val = dr.strftime('%H:%M') if dr else '' %}
+    {% else %}
+      {% set remind_on = true %}
+      {% set remind_val = '13:00' %}
+    {% endif %}
+    <fieldset class="field remind">
+      <legend>재알림</legend>
+      <label class="check-line">
+        <input type="checkbox" name="remind_on" {{ 'checked' if remind_on }}>
+        <span><b>아직 기록하지 않은 과제가 있으면 한 번 더 알림</b><br>
+          <span class="fine">같은 날, 알림 시각보다 늦은 시각만 쓸 수 있어요. 기본은 알림 시각 + 6시간이에요.</span></span>
+      </label>
+      <label class="field" style="margin-left:30px">
+        <span>재알림 시각</span>
+        <input type="time" name="remind_time" value="{{ remind_val }}" style="width:150px">
+      </label>
+    </fieldset>
+
     {% set rest = (v.get('is_rest_day') == 'on') if values else (shift.is_rest_day if shift else false) %}
     <label class="check-line">
       <input type="checkbox" name="is_rest_day" {{ 'checked' if rest }}>
