@@ -27,8 +27,6 @@ class ShiftError(ValueError):
 @dataclass
 class ShiftInput:
     label: str
-    start_time: time | None
-    end_time: time | None
     study_minutes: int
     send_time: time
     is_rest_day: bool
@@ -60,19 +58,11 @@ def parse_form(form) -> ShiftInput:
         raise ShiftError("공부 가능 시간은 숫자(분)로 입력해 주세요.") from None
     if not 0 <= minutes <= MAX_STUDY_MINUTES:
         raise ShiftError(f"공부 가능 시간은 0~{MAX_STUDY_MINUTES}분 사이로 입력해 주세요.")
-    start = _parse_time(form.get("start_time"), "근무 시작 시각", required=False)
-    end = _parse_time(form.get("end_time"), "근무 종료 시각", required=False)
-    if (start is None) != (end is None):
-        raise ShiftError("근무 시작·종료 시각은 둘 다 입력하거나 둘 다 비워 주세요.")
-    if start is not None and start == end:
-        raise ShiftError("근무 시작과 종료 시각이 같을 수 없습니다.")
     color = (form.get("color") or "").strip() or None
     if color is not None and color not in SHIFT_COLORS:
         raise ShiftError("색상을 목록에서 골라 주세요.")
     return ShiftInput(
         label=label,
-        start_time=start,
-        end_time=end,
         study_minutes=minutes,
         send_time=_parse_time(form.get("send_time"), "알림 시각", required=True),
         is_rest_day=form.get("is_rest_day") in ("on", "1", "true"),
@@ -156,9 +146,7 @@ def update_shift(db: Session, shift: ShiftType, data: ShiftInput) -> bool:
 
 def set_quick(db: Session, shift: ShiftType, study_minutes: int, send_time: time) -> bool:
     """온보딩의 간단 입력(공부 시간·알림 시각만)."""
-    data = ShiftInput(
-        shift.label, shift.start_time, shift.end_time, study_minutes, send_time, shift.is_rest_day, shift.color
-    )
+    data = ShiftInput(shift.label, study_minutes, send_time, shift.is_rest_day, shift.color)
     return update_shift(db, shift, data)
 
 
@@ -186,8 +174,6 @@ def delete_shift(db: Session, shift: ShiftType) -> None:
 
 def _apply(shift: ShiftType, data: ShiftInput) -> None:
     shift.label = data.label
-    shift.start_time = data.start_time
-    shift.end_time = data.end_time
     shift.study_minutes = data.study_minutes
     shift.send_time = data.send_time
     shift.is_rest_day = data.is_rest_day

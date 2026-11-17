@@ -6,7 +6,6 @@
     <td>
       <span class="shift-dot" style="--dot: {{ s.color_hex or 'var(--border-grid)' }}"></span>
       {{ s.label }}{% if s.is_rest_day %} <span class="tag accent">쉬는 날</span>{% endif %}
-      {% if s.hours_text %}<div class="fine">{{ s.hours_text }}</div>{% endif %}
     </td>
     <td><input type="number" min="0" max="1440" step="5" name="{{ s.code }}_minutes" value="{{ s.study_minutes }}" style="width:96px" inputmode="numeric"></td>
     <td><input type="time" name="{{ s.code }}_time" value="{{ s.send_time.strftime('%H:%M') }}"></td>

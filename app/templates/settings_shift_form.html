@@ -17,16 +17,6 @@
       <input name="label" maxlength="20" required value="{{ val('label', shift.label if shift else '') }}" placeholder="예: 데이, 단축근무, 교육">
     </label>
 
-    <fieldset class="field">
-      <legend>근무 시간 <span class="fine">(표시용, 쉬는 날이면 비워 두세요)</span></legend>
-      <div class="row">
-        <input type="time" name="start_time" aria-label="근무 시작" value="{{ val('start_time', shift.start_time.strftime('%H:%M') if shift and shift.start_time else '') }}">
-        <span class="muted">–</span>
-        <input type="time" name="end_time" aria-label="근무 종료" value="{{ val('end_time', shift.end_time.strftime('%H:%M') if shift and shift.end_time else '') }}">
-      </div>
-      <span class="fine">종료가 시작보다 이르면(예: 22:00–07:00) 야간 근무로 보고, 시작한 날에 기록돼요.</span>
-    </fieldset>
-
     <div class="row">
       <label class="field">
         <span>공부 가능 시간(분)</span>

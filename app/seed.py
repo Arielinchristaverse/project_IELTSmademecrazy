@@ -7,12 +7,12 @@ from sqlalchemy.orm import Session
 from .models import Sentence, ShiftType, User
 
 # 새 사용자에게 채워지는 기본 근무 유형 4개 (온보딩·설정에서 수정 가능)
-# code, 이름, 근무 시작, 근무 종료, 공부 가능 시간(분), 알림 시각, 쉬는 날, 색
+# code, 이름, 공부 가능 시간(분), 알림 시각, 쉬는 날, 색
 PRESET_SHIFTS = [
-    ("DAY", "데이", time(7, 0), time(15, 0), 60, time(5, 30), False, "sky"),
-    ("EVENING", "이브닝", time(15, 0), time(23, 0), 120, time(9, 0), False, "violet"),
-    ("NIGHT", "나이트", time(23, 0), time(7, 0), 60, time(15, 0), False, "indigo"),
-    ("OFF", "오프", None, None, 180, time(8, 0), True, "teal"),
+    ("DAY", "데이", 60, time(5, 30), False, "sky"),
+    ("EVENING", "이브닝", 120, time(9, 0), False, "violet"),
+    ("NIGHT", "나이트", 60, time(15, 0), False, "indigo"),
+    ("OFF", "오프", 180, time(8, 0), True, "teal"),
 ]
 
 SENTENCES = [
@@ -73,11 +73,11 @@ def seed_user(db: Session, user: User) -> None:
     """새 사용자에게 기본 근무 유형과 영어 문장 50개를 만들어 준다 (이미 있으면 건너뜀)."""
     # 근무 유형이 하나도 없는 사용자에게만 프리셋을 채운다 (지운 프리셋을 되살리지 않도록)
     if db.scalar(select(ShiftType.id).where(ShiftType.user_id == user.id).limit(1)) is None:
-        for pos, (code, label, start, end, minutes, send, rest, color) in enumerate(PRESET_SHIFTS):
+        for pos, (code, label, minutes, send, rest, color) in enumerate(PRESET_SHIFTS):
             db.add(
                 ShiftType(
-                    user_id=user.id, code=code, label=label, start_time=start, end_time=end,
-                    study_minutes=minutes, send_time=send, is_rest_day=rest, color=color, position=pos,
+                    user_id=user.id, code=code, label=label, study_minutes=minutes,
+                    send_time=send, is_rest_day=rest, color=color, position=pos,
                 )
             )
     if db.scalar(select(Sentence.id).where(Sentence.user_id == user.id).limit(1)) is None:

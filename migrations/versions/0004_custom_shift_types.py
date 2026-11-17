@@ -1,11 +1,11 @@
-"""사용자 정의 근무 유형: 근무 시각 · 쉬는 날 · 색 · 순서 · 보관, 이름 중복 방지, 달력→유형 외래키
+"""사용자 정의 근무 유형: 쉬는 날 · 색 · 순서 · 보관, 이름 중복 방지, 달력→유형 외래키
 
 Revision ID: 0004
 Revises: 0003
 
 동작 (전체가 하나의 트랜잭션. 시작 전 scripts/migrate.py 가 DB 백업을 만든다)
-1. shift_types 에 칸 추가: start_time, end_time, is_rest_day, color, position, archived_at
-2. 기존 프리셋 4개 값 채우기: OFF → 쉬는 날, 순서·색·근무 시각 기본값(데이 07–15, 이브닝 15–23, 나이트 23–07)
+1. shift_types 에 칸 추가: is_rest_day, color, position, archived_at
+2. 기존 프리셋 4개 값 채우기: OFF → 쉬는 날, 순서·색
 3. 달력이 가리키는데 유형 표에 없는 코드가 있으면, 기록을 지우지 않도록 '보관된 유형'으로 만들어 보존
 4. 같은 사용자 안에서 이름이 겹치면 뒤에 번호를 붙인 뒤, (user_id, label) 중복 방지 조건 추가
 5. calendar_days (user_id, shift_code) → shift_types (user_id, code) 외래키 추가
@@ -21,11 +21,11 @@ branch_labels = None
 depends_on = None
 
 PRESETS = {
-    # code: (position, start, end, is_rest_day, color)
-    "DAY": (0, time(7, 0), time(15, 0), False, "sky"),
-    "EVENING": (1, time(15, 0), time(23, 0), False, "violet"),
-    "NIGHT": (2, time(23, 0), time(7, 0), False, "indigo"),
-    "OFF": (3, None, None, True, "teal"),
+    # code: (position, is_rest_day, color)
+    "DAY": (0, False, "sky"),
+    "EVENING": (1, False, "violet"),
+    "NIGHT": (2, False, "indigo"),
+    "OFF": (3, True, "teal"),
 }
 
 shift_types = sa.table(
@@ -36,8 +36,6 @@ shift_types = sa.table(
     sa.column("label", sa.String),
     sa.column("study_minutes", sa.Integer),
     sa.column("send_time", sa.Time),
-    sa.column("start_time", sa.Time),
-    sa.column("end_time", sa.Time),
     sa.column("is_rest_day", sa.Boolean),
     sa.column("color", sa.String),
     sa.column("position", sa.Integer),
@@ -50,19 +48,15 @@ def upgrade() -> None:
 
     # 1) 칸 추가
     with op.batch_alter_table("shift_types") as b:
-        b.add_column(sa.Column("start_time", sa.Time, nullable=True))
-        b.add_column(sa.Column("end_time", sa.Time, nullable=True))
         b.add_column(sa.Column("is_rest_day", sa.Boolean, nullable=False, server_default=sa.false()))
         b.add_column(sa.Column("color", sa.String(16), nullable=True))
         b.add_column(sa.Column("position", sa.Integer, nullable=False, server_default="0"))
         b.add_column(sa.Column("archived_at", sa.DateTime, nullable=True))
 
     # 2) 기존 프리셋 값 채우기
-    for code, (pos, start, end, rest, color) in PRESETS.items():
+    for code, (pos, rest, color) in PRESETS.items():
         conn.execute(
-            shift_types.update()
-            .where(shift_types.c.code == code)
-            .values(position=pos, start_time=start, end_time=end, is_rest_day=rest, color=color)
+            shift_types.update().where(shift_types.c.code == code).values(position=pos, is_rest_day=rest, color=color)
         )
     # 프리셋이 아닌 코드는 뒤쪽 순서로
     conn.execute(shift_types.update().where(shift_types.c.code.not_in(list(PRESETS))).values(position=10))
@@ -79,7 +73,7 @@ def upgrade() -> None:
         conn.execute(
             shift_types.insert().values(
                 user_id=uid, code=code, label=code, study_minutes=0, send_time=time(7, 0),
-                start_time=None, end_time=None, is_rest_day=False, color=None, position=99,
+                is_rest_day=False, color=None, position=99,
                 archived_at=datetime.now(),
             )
         )

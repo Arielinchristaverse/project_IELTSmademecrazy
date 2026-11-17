@@ -8,7 +8,7 @@
     <div class="shift-main">
       <div class="shift-name">{{ s.label }}{% if s.is_rest_day %} <span class="tag accent">쉬는 날</span>{% endif %}</div>
       <div class="shift-meta">
-        {% if s.hours_text %}{{ s.hours_text }} · {% endif %}공부 {{ s.study_minutes }}분 · 알림 {{ s.send_time.strftime('%H:%M') }}
+        공부 {{ s.study_minutes }}분 · 알림 {{ s.send_time.strftime('%H:%M') }}
       </div>
     </div>
     <a class="btn ghost small" href="/settings/shifts/{{ s.id }}?back={{ back }}">편집</a>

@@ -91,9 +91,6 @@ class ShiftType(Base):
     label: Mapped[str] = mapped_column(String(SHIFT_NAME_MAX))
     study_minutes: Mapped[int] = mapped_column(Integer, default=0)
     send_time: Mapped[time] = mapped_column(Time, default=time(7, 0))
-    # 근무 시작·종료 (표시용). 종료가 시작보다 이르면 야간 근무(다음 날 끝남)이고 시작한 날짜에 귀속된다.
-    start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
-    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     is_rest_day: Mapped[bool] = mapped_column(Boolean, default=False)  # 쉬는 날 = 주말 보충 기준
     color: Mapped[str | None] = mapped_column(String(16), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
@@ -102,17 +99,6 @@ class ShiftType(Base):
     @property
     def is_archived(self) -> bool:
         return self.archived_at is not None
-
-    @property
-    def is_overnight(self) -> bool:
-        return bool(self.start_time and self.end_time and self.end_time <= self.start_time)
-
-    @property
-    def hours_text(self) -> str:
-        """예: '07:00–15:00', '22:00–07:00 (+1)'. 근무 시각이 없으면 빈 문자열."""
-        if not (self.start_time and self.end_time):
-            return ""
-        return f"{self.start_time:%H:%M}–{self.end_time:%H:%M}" + (" (+1)" if self.is_overnight else "")
 
     @property
     def color_hex(self) -> str | None:

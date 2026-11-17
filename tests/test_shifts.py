@@ -1,4 +1,4 @@
-"""사용자 정의 근무 유형: 추가·수정·보관·삭제, 격리, 8개 제한, 야간 근무, 쉬는 날 기준 보충, 내일부터 재계산, 마이그레이션."""
+"""사용자 정의 근무 유형: 추가·수정·보관·삭제, 격리, 8개 제한, 쉬는 날 기준 보충, 내일부터 재계산, 마이그레이션."""
 import sqlite3
 from datetime import date, datetime, time, timedelta
 
@@ -26,7 +26,7 @@ def shift(db, user, code):
 
 
 def form(**kw):
-    base = {"label": "단축근무", "start_time": "09:00", "end_time": "13:00", "study_minutes": "90", "send_time": "14:00"}
+    base = {"label": "단축근무", "study_minutes": "90", "send_time": "14:00"}
     base.update(kw)
     return {k: v for k, v in base.items() if v is not None}
 
@@ -44,8 +44,8 @@ def test_new_user_gets_four_presets(db, user):
     rows = svc.list_shifts(db, user.id)
     assert [s.label for s in rows] == ["데이", "이브닝", "나이트", "오프"]
     assert [s.is_rest_day for s in rows] == [False, False, False, True]
-    assert rows[2].hours_text == "23:00–07:00 (+1)" and rows[2].is_overnight
-    assert rows[3].hours_text == ""
+    assert [s.study_minutes for s in rows] == [60, 120, 60, 180]
+    assert not hasattr(rows[0], "start_time")  # 근무 시각은 다루지 않음
 
 
 # ------------------------------------------------------------------ 추가·수정·보관·삭제 (HTTP)
@@ -59,7 +59,7 @@ def test_add_edit_archive_unarchive_delete(db, user):
         assert s.position == 4  # 프리셋 뒤
 
         html = c.get("/settings").text
-        assert "단축근무" in html and "09:00–13:00" in html and "공부 90분" in html
+        assert "단축근무" in html and "공부 90분" in html and "알림 14:00" in html
 
         r = c.post(f"/settings/shifts/{s.id}", data=form(label="단축", study_minutes="30", is_rest_day=None))
         db.refresh(s)
@@ -87,8 +87,6 @@ def test_add_edit_archive_unarchive_delete(db, user):
         (form(label="가" * 21), "20자 이하"),
         (form(label="데이"), "이미 있습니다"),
         (form(label=" 데이 "), "이미 있습니다"),
-        (form(start_time="09:00", end_time=""), "둘 다"),
-        (form(start_time="09:00", end_time="09:00"), "같을 수 없습니다"),
         (form(study_minutes="1500"), "0~1440"),
         (form(study_minutes="abc"), "숫자"),
         (form(send_time=""), "알림 시각"),
@@ -183,23 +181,20 @@ def test_other_users_shift_is_404(db, user):
     assert theirs.label == "그쪽유형" and not theirs.is_archived
 
 
-# ------------------------------------------------------------------ 야간 근무 날짜 귀속
-def test_overnight_shift_belongs_to_start_date(db, user):
-    night = svc.create_shift(
-        db, user.id, svc.parse_form(form(label="야간", start_time="22:00", end_time="07:00", study_minutes="45", send_time="16:00"))
-    )
-    assert night.is_overnight and night.hours_text == "22:00–07:00 (+1)"
-    db.add(CalendarDay(user_id=user.id, date=MON, shift_code=night.code))
+# ------------------------------------------------------------------ 직접 만든 유형의 배정·알림
+def test_custom_shift_drives_capacity_and_notify_time_on_its_date(db, user):
+    mine = svc.create_shift(db, user.id, svc.parse_form(form(label="교육", study_minutes="45", send_time="16:00")))
+    db.add(CalendarDay(user_id=user.id, date=MON, shift_code=mine.code))
     db.add(Task(user_id=user.id, name="단어", subject="V", duration_min=30, weekly_count=3))
     user.notify_channel = "email"
     db.commit()
     generate_week(db, user.id, MON, MON)
     mon = db.scalars(select(Assignment).where(Assignment.user_id == user.id, Assignment.date == MON)).all()
     tue = db.scalars(select(Assignment).where(Assignment.user_id == user.id, Assignment.date == MON + timedelta(1))).all()
-    assert mon and sum(a.task.duration_min for a in mon) <= 45  # 시작한 날(월)에 배정
-    assert tue == []  # 끝나는 날(화)에는 아무것도 생기지 않음
+    assert mon and sum(a.task.duration_min for a in mon) <= 45  # 그 유형의 공부 시간 안에서
+    assert tue == []  # 달력에 입력한 날에만 배정
     assert notify_due(db, user, datetime.combine(MON, time(15, 59))) == []
-    assert notify_due(db, user, datetime.combine(MON, time(16, 0))) != []  # 시작한 날의 알림 시각
+    assert notify_due(db, user, datetime.combine(MON, time(16, 0))) != []  # 그 유형의 알림 시각
     assert notify_due(db, user, datetime.combine(MON + timedelta(1), time(16, 0))) == []
 
 
@@ -222,7 +217,7 @@ def makeups_on(db, user, d):
 
 
 def test_custom_rest_day_gets_makeup_first(db, user):
-    rest = svc.create_shift(db, user.id, svc.parse_form(form(label="휴무", start_time="", end_time="", is_rest_day="on", study_minutes="120")))
+    rest = svc.create_shift(db, user.id, svc.parse_form(form(label="휴무", is_rest_day="on", study_minutes="120")))
     missed = _week_with(db, user, rest.code)
     wed = MON + timedelta(2)
     prepare_day(db, user, wed)
@@ -232,7 +227,7 @@ def test_custom_rest_day_gets_makeup_first(db, user):
 
 def test_off_without_rest_flag_is_a_weekday(db, user):
     off = shift(db, user, "OFF")
-    svc.update_shift(db, off, svc.parse_form(form(label="오프", start_time="", end_time="", study_minutes="180", send_time="08:00")))
+    svc.update_shift(db, off, svc.parse_form(form(label="오프", study_minutes="180", send_time="08:00")))
     assert not off.is_rest_day
     missed = _week_with(db, user, "OFF")
     wed, sun = MON + timedelta(2), MON + timedelta(6)
@@ -264,7 +259,7 @@ def test_edit_recalculates_from_tomorrow_only(db, user, on_day):
     before_mon, before_tue = snapshot(MON), snapshot(MON + timedelta(1))
     evening = shift(db, user, "EVENING")
     recalculated = svc.update_shift(
-        db, evening, svc.parse_form(form(label="이브닝", start_time="15:00", end_time="23:00", study_minutes="30", send_time="09:00"))
+        db, evening, svc.parse_form(form(label="이브닝", study_minutes="30", send_time="09:00"))
     )
     assert recalculated
     db.expire_all()
@@ -276,7 +271,7 @@ def test_edit_recalculates_from_tomorrow_only(db, user, on_day):
 
     # 이름·색만 바꾸면 재계산하지 않음
     assert not svc.update_shift(
-        db, evening, svc.parse_form(form(label="저녁", start_time="15:00", end_time="23:00", study_minutes="30", send_time="10:00", color="sky"))
+        db, evening, svc.parse_form(form(label="저녁", study_minutes="30", send_time="10:00", color="sky"))
     )
 
 
@@ -316,13 +311,15 @@ def test_migration_0004_preserves_data(tmp_path, monkeypatch):
 
     con = sqlite3.connect(path)
     rows = {r[0]: r[1:] for r in con.execute(
-        "SELECT code, label, study_minutes, is_rest_day, start_time, end_time, position, archived_at IS NOT NULL, color "
+        "SELECT code, label, study_minutes, is_rest_day, position, archived_at IS NOT NULL, color "
         "FROM shift_types WHERE user_id = 1"
     )}
-    assert rows["DAY"][:7] == ("데이", 60, 0, "07:00:00.000000", "15:00:00.000000", 0, 0)
-    assert rows["NIGHT"][3:5] == ("23:00:00.000000", "07:00:00.000000")
+    assert rows["DAY"] == ("데이", 60, 0, 0, 0, "sky")
+    assert rows["NIGHT"][:4] == ("나이트", 60, 0, 2)
+    cols = [r[1] for r in con.execute("PRAGMA table_info(shift_types)")]
+    assert "start_time" not in cols and "end_time" not in cols
     assert rows["OFF"][:3] == ("오프", 180, 1)  # OFF → 쉬는 날
-    assert rows["LEGACY"][6] == 1 and rows["LEGACY"][0] == "LEGACY"  # 고아 코드는 보관된 유형으로 보존
+    assert rows["LEGACY"][4] == 1 and rows["LEGACY"][0] == "LEGACY"  # 고아 코드는 보관된 유형으로 보존
     assert [r[0] for r in con.execute("SELECT shift_code FROM calendar_days ORDER BY date")] == ["DAY", "NIGHT", "OFF", "EVENING", "LEGACY"]
     assert con.execute("SELECT status FROM assignments WHERE id = 9").fetchone()[0] == "done"
     fks = con.execute("PRAGMA foreign_key_list(calendar_days)").fetchall()

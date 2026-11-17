@@ -3,7 +3,7 @@
 {% block content %}
 {% include "onboarding/_steps.html" %}
 <h1>근무 유형별 공부 시간</h1>
-<p class="sub">기본 근무 유형 4개가 준비되어 있어요. 공부할 수 있는 시간과 알림 받을 시각을 고치거나, <b>편집</b>에서 이름·근무 시간을 바꾸고 새 유형을 추가할 수 있어요.</p>
+<p class="sub">기본 근무 유형 4개가 준비되어 있어요. 공부할 수 있는 시간과 알림 받을 시각을 고치거나, <b>편집</b>에서 이름·쉬는 날·색을 바꾸고 새 유형을 추가할 수 있어요.</p>
 {% if msg %}<div class="notice">{{ msg }}</div>{% endif %}
 <form method="post" action="/onboarding/shifts">
   {% set back = '/onboarding/shifts' %}
