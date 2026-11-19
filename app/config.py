@@ -26,12 +26,27 @@ def _secret_env(name: str, default: str = "") -> str:
     return v
 
 
+# 서버 시작 로그에 '설정됨/없음' 만 남길 환경 변수 (값은 절대 출력하지 않는다)
+REPORTED_ENV = ("GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "MAIL_BACKEND")
+
+
+def env_presence(names: tuple[str, ...] = REPORTED_ENV) -> dict[str, bool]:
+    """이름 → 설정 여부. 없거나, 빈 문자열이거나, 공백·따옴표뿐이면 '없음'. 값은 반환하지 않는다."""
+    return {n: _secret_env(n) != "" for n in names}
+
+
+def env_presence_line() -> str:
+    return "[config] " + " ".join(f"{n}={'설정됨' if ok else '없음'}" for n, ok in env_presence().items())
+
+
 class Settings:
     secret_key: str = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
     base_url: str = (os.getenv("BASE_URL") or _default_base_url()).rstrip("/")
-    mail_backend: str = os.getenv("MAIL_BACKEND", "console")
+    # 비어 있거나 공백뿐이면 console(저장만 함). 대소문자·앞뒤 공백은 무시
+    mail_backend: str = _secret_env("MAIL_BACKEND").lower() or "console"
     gmail_address: str = _secret_env("GMAIL_ADDRESS")
-    gmail_app_password: str = os.getenv("GMAIL_APP_PASSWORD", "")
+    # 앞뒤 공백·따옴표는 정리하고, 가운데 공백(앱 비밀번호의 4자리 구분)은 발송 때 뺀다
+    gmail_app_password: str = _secret_env("GMAIL_APP_PASSWORD")
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./data/app.db")
     timezone: ZoneInfo = ZoneInfo(os.getenv("TIMEZONE", "Asia/Seoul"))
     scheduler_enabled: bool = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"

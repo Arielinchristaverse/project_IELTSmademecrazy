@@ -15,7 +15,8 @@ from ..deps import admin_user, current_user, safe_back
 from ..models import MAX_ACTIVE_SHIFTS, NOTIFY_CHOICES, PushSubscription, ShiftType, User
 from ..services import shifts as shift_svc
 from ..services.backup import backup_to
-from ..services.mailer import mail_status
+from ..services.daily import send_test_mail
+from ..services.mailer import MAIL_ERROR_CODES, error_code, mail_status
 from ..templating import templates
 
 router = APIRouter()
@@ -70,6 +71,8 @@ def settings_page(
             "user": user,
             "saved": saved,
             "mail": mail_status(),
+            "mail_test": request.query_params.get("mail_test"),
+            "mail_codes": MAIL_ERROR_CODES,
             "channels_enabled": settings.notify_channels,
             "devices": [
                 {"sub": d, "label": device_label(d.user_agent)}
@@ -93,6 +96,19 @@ async def save_settings(request: Request, db: Session = Depends(get_db), user: U
         user.notify_channel = channel
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+@router.post("/settings/mail/test")
+def settings_test_mail(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """설정 화면의 테스트 메일. 실패하면 오류 코드만 돌려준다(메시지·서버 응답·설정 값은 화면에 내지 않음)."""
+    try:
+        send_test_mail(db, user, clock.today())
+        result = "console" if settings.mail_backend == "console" else "ok"
+    except Exception as e:  # noqa: BLE001
+        db.rollback()
+        result = error_code(e)
+        print(f"[mail:test] user={user.id} failed code={result} ({type(e).__name__})", flush=True)
+    return RedirectResponse(f"/settings?mail_test={result}#mail", status_code=303)
 
 
 @router.post("/settings/channel")

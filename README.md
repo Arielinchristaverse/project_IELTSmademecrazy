@@ -30,7 +30,7 @@ uvicorn app.main:app --port 8000
 ```
 
 - http://localhost:8000 → **개발용 로그인**에 아무 이메일 입력 → 온보딩(근무 유형 → 과제 → 근무 달력 → 알림)
-- 메일은 기본값(`MAIL_BACKEND=console`)이면 보내지 않고 저장 → **이번 주** 화면의 *최근 메일 미리보기*로 확인
+- 메일은 기본값(`MAIL_BACKEND` 가 없거나 비어 있으면 console)이면 보내지 않고 저장 → **이번 주** 화면의 *최근 메일 미리보기*로 확인
 - 웹 푸시는 `localhost` 에서도 동작합니다(브라우저가 localhost 를 안전한 주소로 취급). VAPID 키가 필요합니다(아래 3-2).
 - 테스트: `pytest -q` (Node 가 있으면 서비스 워커·로그인 스크립트 테스트도 함께 실행)
 
@@ -83,7 +83,7 @@ python -m scripts.gen_vapid mailto:you@example.com
 | `ALLOWED_EMAILS` | 가입 허용 이메일(쉼표 구분). 비우면 누구나 가입 |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | 3-1 |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | 3-2 |
-| `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` | 메일 알림용 Gmail 과 앱 비밀번호 |
+| `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` | 메일 알림용 Gmail 과 앱 비밀번호. 없거나 빈 문자열·공백·따옴표뿐이면 "미설정". 서버 시작 로그에 `[config] GMAIL_ADDRESS=설정됨|없음 …` 로 **여부만** 남김(값은 출력 안 함). 설정 → 메일 연결 상태의 *테스트 메일 보내기* 는 실패 시 오류 코드(`MAIL_NOT_CONFIGURED`, `MAIL_AUTH_FAILED`, `MAIL_CONNECT_FAILED`, `MAIL_REJECTED`, `MAIL_UNKNOWN`)만 표시 |
 
 `SECRET_KEY` 는 Render 가 자동 생성하고, `BASE_URL` 은 Render 주소를 자동으로 씁니다.
 운영 서버는 `DEV_LOGIN` 이 켜져 있거나 VAPID 키·SECRET_KEY 가 없으면 **시작을 거부**합니다(Logs 탭에 이유 표시).

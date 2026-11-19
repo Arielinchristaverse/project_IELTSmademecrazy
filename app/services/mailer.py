@@ -8,6 +8,28 @@ from email.mime.text import MIMEText
 from ..config import settings
 
 
+class MailError(RuntimeError):
+    """메일 발송 실패. code 는 화면에 그대로 보여 줘도 되는 짧은 오류 코드(값·서버 응답 없음)."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+# 오류 코드 → 사용자가 할 일 (설정 화면 안내용)
+MAIL_ERROR_CODES = {
+    "MAIL_NOT_CONFIGURED": "GMAIL_ADDRESS 또는 GMAIL_APP_PASSWORD 가 없음",
+    "MAIL_AUTH_FAILED": "Gmail 로그인 실패 (앱 비밀번호 또는 주소 확인)",
+    "MAIL_CONNECT_FAILED": "smtp.gmail.com:465 연결 실패",
+    "MAIL_REJECTED": "Gmail 이 발송을 거부함",
+    "MAIL_UNKNOWN": "알 수 없는 오류",
+}
+
+
+def error_code(e: Exception) -> str:
+    return e.code if isinstance(e, MailError) else "MAIL_UNKNOWN"
+
+
 def send_mail(to: str, subject: str, html: str, text: str, owner_id: int = 0) -> str:
     """메일 발송. console 모드에서는 outbox/ 에 사용자별 HTML 파일로 저장한다. 반환: 결과 설명."""
     if settings.mail_backend == "console":
@@ -19,7 +41,7 @@ def send_mail(to: str, subject: str, html: str, text: str, owner_id: int = 0) ->
         return "console 모드: 실제 발송 대신 저장했습니다. 아래 '메일 미리보기'로 확인하세요."
 
     if not settings.gmail_address or not settings.gmail_app_password:
-        raise RuntimeError("GMAIL_ADDRESS / GMAIL_APP_PASSWORD 가 설정되지 않았습니다.")
+        raise MailError("MAIL_NOT_CONFIGURED", "GMAIL_ADDRESS / GMAIL_APP_PASSWORD 가 설정되지 않았습니다.")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -32,11 +54,17 @@ def send_mail(to: str, subject: str, html: str, text: str, owner_id: int = 0) ->
             s.login(settings.gmail_address, settings.gmail_app_password.replace(" ", ""))
             s.send_message(msg)
     except smtplib.SMTPAuthenticationError as e:
-        raise RuntimeError(
+        raise MailError(
+            "MAIL_AUTH_FAILED",
             "Gmail 로그인 실패: 앱 비밀번호가 틀렸거나, GMAIL_ADDRESS 가 비밀번호를 만든 계정과 다릅니다."
         ) from e
+    except smtplib.SMTPException as e:
+        raise MailError("MAIL_REJECTED", f"Gmail 이 발송을 거부했습니다. ({type(e).__name__})") from e
     except (OSError, TimeoutError) as e:
-        raise RuntimeError(f"Gmail 서버(smtp.gmail.com:465)에 연결하지 못했습니다. 네트워크가 메일 포트를 막고 있을 수 있습니다. ({e})") from e
+        raise MailError(
+            "MAIL_CONNECT_FAILED",
+            f"Gmail 서버(smtp.gmail.com:465)에 연결하지 못했습니다. 네트워크가 메일 포트를 막고 있을 수 있습니다. ({type(e).__name__})",
+        ) from e
     return f"{to} 로 발송 완료"
 
 

@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from scripts import migrate
 
 from . import auth, scheduler
-from .config import settings
+from .config import env_presence_line, settings
 from .deps import NeedsOnboarding, NotLoggedIn
 from .routers import (
     account,
@@ -30,6 +30,7 @@ from .routers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print(env_presence_line(), flush=True)  # 설정 여부만. 값은 남기지 않는다
     problems = settings.production_problems()
     if problems:
         raise RuntimeError("운영 설정 오류: " + " / ".join(problems))
