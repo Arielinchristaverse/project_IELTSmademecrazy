@@ -79,7 +79,7 @@ python -m scripts.gen_vapid mailto:you@example.com
 
 | 변수 | 값 |
 |---|---|
-| `ADMIN_EMAIL` | 관리자 구글 이메일 (백업 다운로드 가능, 기존 단일 사용자 데이터 이전 대상) |
+| `ADMIN_EMAIL` | 관리자 구글 이메일 (백업 다운로드 가능, 기존 단일 사용자 데이터 이전 대상). **관리자는 이 주소 계정 하나**: 서버 시작·로그인 때 맞추므로, 바꾸고 재배포하면 예전 관리자 권한은 빠지고 새 주소 계정이 관리자가 됨(데이터는 각 계정에 그대로). 비워 두면 관리자 플래그를 바꾸지 않음. 시작 로그 `[admin] 관리자 동기화: 부여 N · 해제 M` |
 | `ALLOWED_EMAILS` | 가입 허용 이메일(쉼표 구분). 비우면 누구나 가입 |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | 3-1 |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | 3-2 |

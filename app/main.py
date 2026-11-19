@@ -10,6 +10,7 @@ from scripts import migrate
 
 from . import auth, scheduler
 from .config import env_presence_line, settings
+from .db import SessionLocal
 from .deps import NeedsOnboarding, NotLoggedIn
 from .routers import (
     account,
@@ -26,6 +27,7 @@ from .routers import (
     today,
     weeks,
 )
+from .services.users import sync_admin_flags
 
 
 @asynccontextmanager
@@ -35,6 +37,9 @@ async def lifespan(app: FastAPI):
     if problems:
         raise RuntimeError("운영 설정 오류: " + " / ".join(problems))
     migrate.run()
+    with SessionLocal() as db:  # ADMIN_EMAIL 이 바뀌었으면 예전 관리자 권한을 뺀다 (이메일은 로그에 남기지 않음)
+        r = sync_admin_flags(db)
+    print("[admin] ADMIN_EMAIL 없음: 관리자 플래그 변경 안 함" if r is None else f"[admin] 관리자 동기화: 부여 {r[0]} · 해제 {r[1]}", flush=True)
     if settings.scheduler_enabled:
         scheduler.start()
     yield

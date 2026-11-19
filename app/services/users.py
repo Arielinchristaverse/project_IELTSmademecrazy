@@ -1,5 +1,5 @@
 """사용자 생성·조회·삭제."""
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from .. import clock
@@ -13,7 +13,7 @@ def normalize_email(email: str) -> str:
 
 
 def get_or_create_user(db: Session, email: str, name: str = "", google_sub: str | None = None) -> User:
-    """구글 sub → 이메일 순으로 찾고, 없으면 만든다. 관리자 이메일은 is_admin."""
+    """구글 sub → 이메일 순으로 찾고, 없으면 만든다. 관리자 여부는 ADMIN_EMAIL 과 맞춘다."""
     email = normalize_email(email)
     user = None
     if google_sub:
@@ -28,12 +28,31 @@ def get_or_create_user(db: Session, email: str, name: str = "", google_sub: str 
         user.google_sub = google_sub  # 마이그레이션으로 만든 관리자 계정을 처음 로그인할 때 연결
     if name and not user.name:
         user.name = name
-    if settings.admin_email and email == settings.admin_email:
-        user.is_admin = True
+    if settings.admin_email:  # 비어 있으면 건드리지 않는다 (sync_admin_flags 참고)
+        user.is_admin = settings.admin_email in (email, user.email)
     user.last_login_at = clock.now()
     db.commit()
     seed_user(db, user)
     return user
+
+
+def sync_admin_flags(db: Session) -> tuple[int, int] | None:
+    """관리자 = ADMIN_EMAIL 계정 하나. 서버 시작 시 DB 플래그를 맞춘다: 그 계정은 켜고 나머지는 끈다.
+
+    ADMIN_EMAIL 이 비어 있으면 실수로 모든 관리자를 잃지 않도록 아무것도 바꾸지 않는다(None 반환).
+    반환: (켠 수, 끈 수)
+    """
+    admin = settings.admin_email
+    if not admin:
+        return None
+    revoked = db.execute(
+        update(User).where(User.is_admin.is_(True), User.email != admin).values(is_admin=False)
+    ).rowcount
+    granted = db.execute(
+        update(User).where(User.is_admin.is_(False), User.email == admin).values(is_admin=True)
+    ).rowcount
+    db.commit()
+    return granted, revoked
 
 
 def delete_user(db: Session, user: User) -> None:
