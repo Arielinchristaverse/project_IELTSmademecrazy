@@ -70,7 +70,7 @@ def settings_page(
             "msg": request.query_params.get("msg"),
             "user": user,
             "saved": saved,
-            "mail": mail_status(),
+            "mail": mail_status() if user.is_admin else None,  # 서버 메일 설정은 관리자에게만
             "mail_test": request.query_params.get("mail_test"),
             "mail_codes": MAIL_ERROR_CODES,
             "channels_enabled": settings.notify_channels,

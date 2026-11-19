@@ -111,3 +111,37 @@ def test_unknown_code_in_query_is_not_echoed(db, user):
         login(c)
         page = c.get("/settings?mail_test=<b>hello</b>").text
     assert "hello" not in page
+
+
+def test_mail_status_admin_only(db, user, monkeypatch):
+    from app.services.users import get_or_create_user
+
+    other = get_or_create_user(db, "other@example.com")
+    other.onboarding_step = 3
+    db.commit()
+    monkeypatch.setattr(settings, "gmail_address", ADDR)
+    with TestClient(app) as c:
+        login(c, "other@example.com")
+        page = c.get("/settings").text
+        assert "테스트 메일 보내기" in page and 'action="/settings/mail/test"' in page
+        for hidden in ("메일 연결 상태", "발송 방식", "보내는 Gmail", "앱 비밀번호", "GMAIL_", "MAIL_BACKEND", ADDR):
+            assert hidden not in page, hidden
+        c.post("/logout")
+        login(c)  # 관리자
+        page = c.get("/settings").text
+        assert "메일 연결 상태" in page and ADDR in page and "테스트 메일 보내기" in page
+
+
+def test_non_admin_sees_error_code(db, monkeypatch):
+    from app.services.users import get_or_create_user
+
+    other = get_or_create_user(db, "other@example.com")
+    other.onboarding_step = 3
+    db.commit()
+    monkeypatch.setattr(settings, "mail_backend", "smtp")
+    monkeypatch.setattr(settings, "gmail_app_password", "")
+    with TestClient(app) as c:
+        login(c, "other@example.com")
+        page = c.post("/settings/mail/test").text
+    assert '오류 코드 <code class="mail-error-code">MAIL_NOT_CONFIGURED</code>' in page
+    assert "GMAIL_APP_PASSWORD" not in page

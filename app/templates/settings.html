@@ -55,7 +55,9 @@
   <button class="ghost">적용</button>
 </form>
 
-<h2 id="mail">메일 연결 상태</h2>
+{#- 일반 계정: 테스트 메일 버튼만. 관리자: 서버 메일 설정 상태까지 -#}
+{% if user.is_admin and mail %}
+<h2 id="mail">메일 연결 상태 <span class="tag">관리자</span></h2>
 <table class="list">
   <tr><th style="width:180px">발송 방식</th><td>
     {% if mail.backend == 'smtp' %}<span class="tag accent">Gmail 실제 발송</span>
@@ -68,6 +70,9 @@
 {% if mail.backend == 'smtp' and not (mail.address and mail.has_password) %}
 <p class="warn">⚠ Gmail 주소 또는 앱 비밀번호가 비어 있어 발송이 실패합니다.</p>
 {% endif %}
+{% else %}
+<h2 id="mail">테스트 메일</h2>
+{% endif %}
 <form method="post" action="/settings/mail/test" class="row" style="margin:14px 0 6px">
   <button class="ghost">테스트 메일 보내기</button>
   <span class="muted" style="font-size:13px">{{ user.mail_to }} 로 오늘 과제 메일을 보냅니다.</span>
@@ -76,7 +81,7 @@
 {% elif mail_test == 'console' %}<p class="notice" role="status">console 모드라 실제로 보내지 않고 저장했습니다. 이번 주 화면의 '메일 미리보기'로 확인하세요.</p>
 {% elif mail_test in mail_codes %}<p class="warn" role="alert">테스트 메일 실패 · 오류 코드 <code class="mail-error-code">{{ mail_test }}</code></p>
 {% endif %}
-<p class="muted" style="font-size:13px">이 값들은 화면이 아니라 환경 변수(Codespaces Secrets, .env)로 설정합니다. 바꾼 뒤에는 서버를 다시 시작해야 반영됩니다.</p>
+{% if user.is_admin %}<p class="muted" style="font-size:13px">이 값들은 화면이 아니라 환경 변수(Render Environment, Codespaces Secrets, .env)로 설정합니다. 바꾼 뒤에는 서버를 다시 시작해야 반영됩니다.</p>{% endif %}
 
 {% if user.is_admin %}
 <h2>데이터 백업 <span class="tag">관리자</span></h2>
