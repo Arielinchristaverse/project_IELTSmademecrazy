@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,10 +17,7 @@ from ..services.allocator import (
     pending_items,
     week_start_of,
 )
-from ..config import settings
-from ..services.daily import send_test_mail
 from ..services import extras as extra_svc
-from ..services.mailer import latest_outbox_file, read_outbox
 from ..services.progress import set_status, week_progress
 from ..templating import templates
 
@@ -84,7 +81,6 @@ def week_page(
             "today": today,
             "msg": msg,
             "logs": logs,
-            "preview": latest_outbox_file(user.id) if settings.mail_backend == "console" else None,
         },
     )
 
@@ -94,16 +90,6 @@ def generate(start: str = Form(...), db: Session = Depends(get_db), user: User =
     ws = week_start_of(date.fromisoformat(start))
     generate_week(db, user.id, ws, clock.today())
     return RedirectResponse(f"/?start={ws}&msg=배정을 생성했습니다.", status_code=303)
-
-
-@router.post("/mail/test")
-def test_mail(day: str = Form(...), db: Session = Depends(get_db), user: User = Depends(current_user)):
-    d = date.fromisoformat(day)
-    try:
-        result = send_test_mail(db, user, d)
-    except Exception as e:  # noqa: BLE001
-        result = f"발송 실패: {e}"
-    return RedirectResponse(f"/?start={week_start_of(d)}&msg=테스트 메일 — {result}", status_code=303)
 
 
 @router.post("/extras/{task_id}/{action}")
@@ -148,12 +134,3 @@ def change_status(
     if status in ("scheduled", "done", "missed"):
         set_status(db, a, status)
     return RedirectResponse(safe_back(back, f"/?start={a.week_start}"), status_code=303)
-
-
-@router.get("/mail/preview/{name}")
-def mail_preview(name: str, user: User = Depends(current_user)):
-    html = read_outbox(name, user.id)
-    if html is None:
-        return HTMLResponse("미리보기 파일이 없습니다.", status_code=404)
-    return HTMLResponse(html)
-

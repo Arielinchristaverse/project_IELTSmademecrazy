@@ -16,7 +16,7 @@ from app.services.allocator import generate_week, is_rest_day, pending_items
 from app.services.daily import notify_due, prepare_day, push_body, remind_due
 from app.services.users import get_or_create_user
 from tests.conftest import login
-from tests.test_push import add_sub, pusher  # noqa: F401  (pusher 는 fixture)
+from tests.conftest import add_sub
 
 MON = date(2026, 11, 2)
 SUN = MON + timedelta(days=6)

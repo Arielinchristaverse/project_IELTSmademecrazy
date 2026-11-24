@@ -11,7 +11,7 @@ from app import clock
 from app.main import app
 from app.models import Assignment, CalendarDay, ExtraCompletion, Task, WeekShortfall
 from app.services.allocator import generate_week, pending_items
-from app.services.daily import build_mail, day_assignments, prepare_day, push_body, remaining
+from app.services.daily import day_assignments, prepare_day, push_body, remaining
 from app.services.extras import week_extras
 from app.services.progress import set_status, week_progress
 from app.services.users import get_or_create_user
@@ -172,7 +172,6 @@ def test_today_notifications_and_pending_unaffected(db, user, today):
         "remaining": len(remaining(a)),
         "push": push_body(user, WED, "daily", a),
         "remind": push_body(user, WED, "remind", a),
-        "subject": build_mail(db, user, WED, a, "daily")[0],
     }
     with TestClient(app) as c:
         login(c)
@@ -186,7 +185,6 @@ def test_today_notifications_and_pending_unaffected(db, user, today):
         "remaining": len(remaining(a)),
         "push": push_body(user, WED, "daily", a),
         "remind": push_body(user, WED, "remind", a),
-        "subject": build_mail(db, user, WED, a, "daily")[0],
     }
     assert after == before
     assert "여유가 생기면 해볼 과제" not in today_page
@@ -219,10 +217,10 @@ def test_migration_backfills_from_warning_text(tmp_path, monkeypatch):
     con.execute("INSERT INTO weeks (id, user_id, start_date, generated_at, warnings) VALUES (1, 1, '2026-11-02', '2026-11-02 06:00:00.000000', ?)", (warnings,))
     con.commit()
     con.close()
-    assert migrate.run(url).startswith("upgraded 0005 -> 0006")
+    assert migrate.run(url).startswith("upgraded 0005 -> ")  # 0006 포함 최신까지
     con = sqlite3.connect(path)
     assert con.execute("select user_id, week_start, task_id, count from week_shortfalls").fetchall() == [(1, "2026-11-02", 1, 2)]
     assert con.execute("select count(*) from extra_completions").fetchone()[0] == 0
     assert con.execute("select warnings from weeks").fetchone()[0] == warnings  # 기존 데이터 그대로
     con.close()
-    assert list((tmp_path / "backups").glob("app-before-0006-*.db"))  # 자동 백업
+    assert list((tmp_path / "backups").glob("app-before-*.db"))  # 자동 백업

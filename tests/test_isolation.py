@@ -84,7 +84,7 @@ def test_http_cannot_touch_other_users_data(db, two, client_as):
 def test_backup_is_admin_only(db, two, client_as):
     me, other = two
     c = client_as(other)
-    assert c.get("/admin/backup").status_code == 403
+    assert c.get("/admin/backup").status_code == 404
     c.__exit__(None, None, None)
 
 

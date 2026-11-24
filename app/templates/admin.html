@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}관리자 · afterwork{% endblock %}
+{% block content %}
+<h1>관리자 <span class="tag">관리자</span></h1>
+<p class="sub">{{ today }} 기준 · 숫자만 보여 주고 사용자 이메일·이름은 표시하지 않아요.</p>
+
+<h2>오늘 발송 현황 (푸시)</h2>
+<table class="list admin-stats">
+  <tr><th>종류</th><th>성공</th><th>실패</th><th>재시도 중</th><th>건너뜀</th></tr>
+  {% for kind, label in [('daily', '정기 알림'), ('remind', '재알림')] %}
+  {% set n = notify[kind] %}
+  <tr><td>{{ label }}</td><td>{{ n.sent }}</td><td>{{ n.failed }}</td><td>{{ n.retrying }}</td><td>{{ n.skipped }}</td></tr>
+  {% endfor %}
+</table>
+<p class="fine">실패 = 지금까지 실패한 건(재시도 중 포함) · 건너뜀 = 알림 받을 기기가 없음. 실패는 10분 간격으로 최대 3회 다시 보냅니다.</p>
+
+<h2>푸시 기기</h2>
+<table class="list admin-stats">
+  <tr><th style="width:220px">등록된 기기</th><td>{{ devices }}대</td></tr>
+  <tr><th>만료되어 지운 기기</th><td>오늘 {{ push_removed_today }}대 · 최근 7일 {{ push_removed_7d }}대</td></tr>
+  <tr><th>알림을 켠 가입자</th><td>{{ with_push }} / {{ total_users }}명 ({{ push_ratio }}%)</td></tr>
+</table>
+
+<h2>가입자</h2>
+<table class="list admin-stats">
+  <tr><th style="width:220px">가입자 / 정원</th><td>{{ members }} / {{ max_users }}명 <span class="muted">(관리자 제외)</span></td></tr>
+</table>
+
+<h2>백업</h2>
+<table class="list admin-stats">
+  <tr><th style="width:220px">최근 자동(매일) 백업</th><td>{{ backup_latest_daily.strftime('%Y-%m-%d %H:%M') if backup_latest_daily else '아직 없음' }}</td></tr>
+  <tr><th>가장 최근 백업</th><td>{{ backup_latest.strftime('%Y-%m-%d %H:%M') if backup_latest else '아직 없음' }}</td></tr>
+  <tr><th>서버에 보관 중</th><td>{{ backup_count }}개 <span class="muted">(30일 지나면 자동 삭제)</span></td></tr>
+</table>
+<p style="margin-top:16px"><a class="btn ghost" href="/admin/backup">지금 DB 백업 내려받기</a></p>
+{% endblock %}

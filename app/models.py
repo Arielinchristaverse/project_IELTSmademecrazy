@@ -37,7 +37,6 @@ SHIFT_COLORS = {
     "slate": "#94A3B8",
 }
 
-NOTIFY_CHOICES = ("push", "email", "both")
 
 # 온보딩 단계: 0=근무 유형, 1=과제, 2=근무 달력, 3=완료
 ONBOARDING_DONE = 3
@@ -54,8 +53,9 @@ class User(Base):
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     name: Mapped[str] = mapped_column(String(100), default="")
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Seoul")  # 컬럼만 (로직은 Asia/Seoul)
-    notify_channel: Mapped[str] = mapped_column(String(10), default="push")  # push | email | both
-    notify_email: Mapped[str] = mapped_column(String(255), default="")  # 비면 email 사용
+    # (메일 기능 제거로 쓰지 않음. 0007 에서 모두 'push' / '' 로 정리. 컬럼 삭제는 승인 후)
+    notify_channel: Mapped[str] = mapped_column(String(10), default="push")
+    notify_email: Mapped[str] = mapped_column(String(255), default="")
     sentence_cursor: Mapped[int] = mapped_column(Integer, default=0)
     onboarding_step: Mapped[int] = mapped_column(Integer, default=0)
     last_prepared_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -63,17 +63,6 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    @property
-    def mail_to(self) -> str:
-        return self.notify_email or self.email
-
-    @property
-    def wants_push(self) -> bool:
-        return self.notify_channel in ("push", "both")
-
-    @property
-    def wants_email(self) -> bool:
-        return self.notify_channel in ("email", "both")
 
 
 class ShiftType(Base):
@@ -205,7 +194,7 @@ class Assignment(Base):
 
 
 class ActionToken(Base):
-    """메일 버튼용 1회용 토큰. 소유자는 assignment 를 통해 정해진다."""
+    """(메일 기능 제거로 쓰지 않음) 예전 메일 버튼용 1회용 토큰. 테이블 삭제는 승인 후."""
 
     __tablename__ = "action_tokens"
     token: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -245,6 +234,17 @@ class NotifyLog(Base):
     status: Mapped[str] = mapped_column(String(10))  # pending | sent | failed | skipped
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str] = mapped_column(Text, default="")
+
+
+class DailyCounter(Base):
+    """서비스 전체의 하루 집계 (사용자 정보 없음). 예: push_removed = 만료되어 지운 푸시 구독 수. 30일 뒤 정리."""
+
+    __tablename__ = "daily_counters"
+    __table_args__ = (UniqueConstraint("day", "key"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[date] = mapped_column(Date)
+    key: Mapped[str] = mapped_column(String(40))
+    count: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class LoginRequest(Base):

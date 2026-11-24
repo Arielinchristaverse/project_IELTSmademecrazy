@@ -1,4 +1,4 @@
-"""설치 안내 · 알림 대체(메일) · 배포 설정 점검."""
+"""설치 안내 · 배포 설정 점검."""
 import shutil
 import subprocess
 from pathlib import Path
@@ -7,7 +7,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from tests.conftest import login
 
 ROOT = Path(__file__).resolve().parent.parent
 IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Version/17.4 Mobile/15E148 Safari/604.1"
@@ -39,24 +38,13 @@ def test_login_js_ios_detection_in_node():
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-def test_switch_to_email_when_push_is_not_possible(db, user):
-    user.notify_channel = "push"
-    db.commit()
-    with TestClient(app) as c:
-        login(c)
-        r = c.post("/settings/channel", data={"channel": "email", "back": "/onboarding/notify"}, follow_redirects=False)
-        assert r.headers["location"] == "/onboarding/notify?channel=1"
-    db.refresh(user)
-    assert user.notify_channel == "email"
-
-
 def test_render_yaml_declares_all_settings():
     text = (ROOT / "render.yaml").read_text(encoding="utf-8")
     for key in [
         "ADMIN_EMAIL", "ALLOWED_EMAILS", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
-        "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "NOTIFY_CHANNELS",
-        "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "SECRET_KEY", "DATABASE_URL", "MAIL_BACKEND",
+        "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "SECRET_KEY", "DATABASE_URL", "MAX_USERS",
     ]:
         assert f"key: {key}" in text, key
-    assert "APP_PASSWORD\n" not in text.replace("GMAIL_APP_PASSWORD", "") and "DEV_LOGIN" not in text
+    for gone in ("MAIL_BACKEND", "GMAIL_", "NOTIFY_CHANNELS", "MAIL_DAILY_LIMIT", "DEV_LOGIN"):  # 푸시 전용
+        assert gone not in text, gone
     assert "name: afterwork" in text and "mountPath: /var/data" in text

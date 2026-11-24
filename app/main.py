@@ -14,7 +14,7 @@ from .db import SessionLocal
 from .deps import NeedsOnboarding, NotLoggedIn
 from .routers import (
     account,
-    actions,
+    admin,
     calendar,
     install,
     onboarding,
@@ -103,9 +103,9 @@ app.include_router(settings_router.router)
 app.include_router(calendar.router)
 app.include_router(tasks.router)
 app.include_router(sentences.router)
-app.include_router(actions.router)
 app.include_router(onboarding.router)
 app.include_router(account.router)
+app.include_router(admin.router)
 app.include_router(pwa.router)
 app.include_router(install.router)
 app.include_router(push.router)

@@ -1,5 +1,4 @@
 """'오늘' 화면: 메일과 같은 내용 · 로그인 상태에서 바로 달성/미달성 · 쉬는 날 재배정 하루 1회."""
-import os
 from datetime import date, datetime, time, timedelta
 
 import pytest
@@ -9,7 +8,6 @@ from sqlalchemy import select
 from app import clock
 from app.main import app
 from app.models import Assignment, CalendarDay, Task
-from app.services.daily import send_test_mail
 from tests.conftest import login
 
 MON = date(2026, 11, 2)
@@ -38,7 +36,7 @@ def setup(db, user, shifts=("DAY",) * 6 + ("OFF",)):
     db.commit()
 
 
-def test_today_shows_mail_content_and_records_directly(db, user, on_day):
+def test_today_shows_content_and_records_directly(db, user, on_day):
     setup(db, user)
     with TestClient(app) as c:
         login(c)
@@ -69,15 +67,13 @@ def test_today_shows_mail_content_and_records_directly(db, user, on_day):
             assert db.get(Assignment, missed.id).status == "scheduled"
 
 
-def test_same_sentence_in_mail_and_today_and_next_day_changes(db, user, on_day):
+def test_same_sentence_all_day_and_next_day_changes(db, user, on_day):
     setup(db, user)
     with TestClient(app) as c:
         login(c)
         page1 = c.get("/today").text
-        send_test_mail(db, user, MON)
-        mail = open(os.path.join("outbox", sorted(os.listdir("outbox"))[-1]), encoding="utf-8").read()
         quote = page1.split('class="sentence">')[1].split("</p>")[0].split("“")[1].split("”")[0]
-        assert quote and quote in mail
+        assert quote
         assert quote in c.get("/today").text  # 같은 날 다시 열어도 같은 문장
 
         on_day["d"] = MON + timedelta(days=1)
@@ -114,7 +110,7 @@ def test_today_requires_login():
         assert c.get("/today", follow_redirects=False).headers["location"] == "/login"
 
 
-def test_progress_bar_on_today_and_mail(db, user, on_day):
+def test_progress_bar_on_today(db, user, on_day):
     setup(db, user)
     with TestClient(app) as c:
         login(c)
@@ -125,9 +121,6 @@ def test_progress_bar_on_today_and_mail(db, user, on_day):
         html = c.get("/today").text
         p = progress_of(html)
         assert p > 0 and f"width: {p}%" in html and f'aria-valuenow="{p}"' in html
-    send_test_mail(db, user, MON)
-    mail = open(os.path.join("outbox", sorted(os.listdir("outbox"))[-1]), encoding="utf-8").read()
-    assert f'width="{p}%"' in mail and "#F59E0B" in mail
 
 
 def test_privacy_page_has_operator_and_contact():

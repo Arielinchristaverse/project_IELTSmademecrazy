@@ -2,12 +2,9 @@
 import json
 from datetime import date, datetime, time, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
-from pywebpush import WebPushException
 from sqlalchemy import select
 
-from app.config import settings
 from app.main import app
 from app.models import CalendarDay, NotifyLog, PushSubscription, ShiftType, Task
 from app.services import notify_text as T
@@ -15,46 +12,9 @@ from app.services import push
 from app.services.daily import notify_due, run_due
 from app.services.users import get_or_create_user
 from scripts.gen_vapid import generate
-from tests.conftest import login
+from tests.conftest import add_sub, login
 
 MON = date(2026, 11, 2)
-
-
-class FakeResponse:
-    def __init__(self, code):
-        self.status_code = code
-        self.reason = "x"
-        self.text = ""
-
-
-@pytest.fixture()
-def pusher(monkeypatch):
-    """webpush 를 가짜로 바꾼다. fail[endpoint] = 상태코드 로 실패를 흉내 낸다."""
-    pub, priv = generate()
-    monkeypatch.setattr(type(settings), "vapid_public_key", pub)
-    monkeypatch.setattr(type(settings), "vapid_private_key", priv)
-    monkeypatch.setattr(type(settings), "vapid_subject", "mailto:test@example.com")
-    box = {"calls": [], "fail": {}}
-
-    def fake_webpush(subscription_info, data, vapid_private_key, vapid_claims, **kw):
-        box["calls"].append({"endpoint": subscription_info["endpoint"], "data": data, "claims": dict(vapid_claims), **kw})
-        code = box["fail"].get(subscription_info["endpoint"])
-        if code:
-            raise WebPushException(f"Push failed: {code}", response=FakeResponse(code))
-
-    monkeypatch.setattr(push, "webpush", fake_webpush)
-    return box
-
-
-def add_sub(db, user, endpoint):
-    from app import clock
-
-    s = PushSubscription(
-        user_id=user.id, endpoint=endpoint, p256dh="p" * 20, auth="a" * 16, user_agent="iPhone", created_at=clock.now()
-    )
-    db.add(s)
-    db.commit()
-    return s
 
 
 def setup_days(db, user, send_at: time):
@@ -190,13 +150,14 @@ def test_each_user_gets_push_at_own_time(db, user, pusher):
     assert sent_to() == ["a", "b"]
 
 
-def test_both_channels_and_sentence_advances_once_per_day(db, user, pusher):
+def test_push_only_and_sentence_advances_once_per_day(db, user, pusher):
     setup_days(db, user, time(6, 0))
-    user.notify_channel = "both"
+    user.notify_channel = "both"  # 예전 값이 남아 있어도 푸시로만 보낸다
     db.commit()
     add_sub(db, user, "https://web.push.apple.com/me")
     out = notify_due(db, user, datetime.combine(MON, time(6, 0)))
-    assert sorted(o.split(":")[0] for o in out) == ["email", "push"]
+    assert [o.split(":")[0] for o in out] == ["push"]
+    assert "@" not in " ".join(out)  # 결과(스케줄러 로그)에 이메일 없음
     db.refresh(user)
     day1 = user.sentence_cursor
     notify_due(db, user, datetime.combine(MON, time(9, 0)))  # 같은 날 다시 호출해도 그대로

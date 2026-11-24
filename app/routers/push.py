@@ -61,6 +61,18 @@ def subscribe(
     return {"ok": True, "id": sub.id}
 
 
+@router.post("/status")
+def status(body: EndpointIn, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """이 기기 구독을 서버가 알고 있는지 (내 계정 구독만 확인). 앱 상단 알림 배너용."""
+    _require_json(request)
+    known = db.scalar(
+        select(PushSubscription.id).where(
+            PushSubscription.endpoint == body.endpoint, PushSubscription.user_id == user.id
+        )
+    )
+    return {"known": known is not None}
+
+
 @router.post("/unsubscribe")
 def unsubscribe(
     body: EndpointIn, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)

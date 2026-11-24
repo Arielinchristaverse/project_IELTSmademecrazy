@@ -204,6 +204,10 @@ table.list th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
 .quick-links { display: flex; gap: 20px; flex-wrap: wrap; margin: 0 0 24px; font-size: 14px; }
 
 /* 알림 설정 */
+/* 알림 상태 배너 (앱 상단) */
+.push-alert { border: 1px solid var(--border-grid); border-left: 3px solid var(--accent-focus); background: var(--bg-surface); padding: 12px 14px; margin: 0 0 24px; }
+.push-alert p { margin: 0 0 10px; font-size: 14px; }
+.push-alert .row { gap: 8px; align-items: center; }
 .panel { background: var(--bg-surface); border: 1px solid var(--border-grid); padding: 16px 18px; }
 .push-box p[data-status] { margin: 0 0 12px; }
 .help { margin-top: 14px; font-size: 13px; border-left: 3px solid var(--accent-focus); padding: 2px 0 2px 12px; }

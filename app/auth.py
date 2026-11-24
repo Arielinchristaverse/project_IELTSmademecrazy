@@ -12,19 +12,18 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from . import clock
 from .config import settings
-from .db import get_db
+from .db import SessionLocal, get_db
 from .models import LoginRequest
 from .services import google_auth
 from .services.users import get_or_create_user, normalize_email
 from .templating import templates
 
 PUBLIC_PREFIXES = (
-    "/a/",
     "/static/",
     "/login",
     "/auth/",
@@ -210,4 +209,10 @@ def logout(request: Request):
 
 @router.get("/healthz")
 def healthz():
-    return {"ok": True}
+    """상태 확인 (Render). DB 연결만 확인하고, 설정·사용자 정보는 내보내지 않는다."""
+    try:
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"ok": False, "db": "error"}, status_code=503)
+    return {"ok": True, "db": "ok"}

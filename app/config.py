@@ -27,7 +27,17 @@ def _secret_env(name: str, default: str = "") -> str:
 
 
 # 서버 시작 로그에 '설정됨/없음' 만 남길 환경 변수 (값은 절대 출력하지 않는다)
-REPORTED_ENV = ("GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "MAIL_BACKEND")
+REPORTED_ENV = (
+    "SECRET_KEY",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "VAPID_PUBLIC_KEY",
+    "VAPID_PRIVATE_KEY",
+    "VAPID_SUBJECT",
+    "ADMIN_EMAIL",
+    "MAX_USERS",
+    "BASE_URL",
+)
 
 
 def env_presence(names: tuple[str, ...] = REPORTED_ENV) -> dict[str, bool]:
@@ -42,19 +52,11 @@ def env_presence_line() -> str:
 class Settings:
     secret_key: str = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
     base_url: str = (os.getenv("BASE_URL") or _default_base_url()).rstrip("/")
-    # 비어 있거나 공백뿐이면 console(저장만 함). 대소문자·앞뒤 공백은 무시
-    mail_backend: str = _secret_env("MAIL_BACKEND").lower() or "console"
-    gmail_address: str = _secret_env("GMAIL_ADDRESS")
-    # 앞뒤 공백·따옴표는 정리하고, 가운데 공백(앱 비밀번호의 4자리 구분)은 발송 때 뺀다
-    gmail_app_password: str = _secret_env("GMAIL_APP_PASSWORD")
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./data/app.db")
     timezone: ZoneInfo = ZoneInfo(os.getenv("TIMEZONE", "Asia/Seoul"))
     scheduler_enabled: bool = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
-    token_valid_days: int = 14
-    # 서버에서 켤 알림 수단. 사용자는 이 중에서 고른다 (push, email)
-    notify_channels: tuple[str, ...] = tuple(
-        c.strip() for c in os.getenv("NOTIFY_CHANNELS", "push,email").split(",") if c.strip()
-    )
+    # 가입 정원 (관리자 제외). 2단계는 관리자 화면 표시만, 3단계에서 가입 시 적용
+    max_users: int = int(_secret_env("MAX_USERS") or 50)
     admin_email: str = _secret_env("ADMIN_EMAIL").lower()
     # 구글 로그인 (Google Cloud Console 의 OAuth 클라이언트)
     google_client_id: str = _secret_env("GOOGLE_CLIENT_ID")
@@ -81,7 +83,7 @@ class Settings:
         problems = []
         if self.is_production and self.dev_login:
             problems.append("DEV_LOGIN 은 운영 서버에서 켤 수 없습니다.")
-        if self.is_production and "push" in self.notify_channels and not self.push_ready:
+        if self.is_production and not self.push_ready:
             problems.append("웹 푸시를 쓰려면 VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT 가 필요합니다.")
         if self.is_production and self.secret_key == "dev-secret-key-change-me":
             problems.append("SECRET_KEY 를 설정해야 합니다.")

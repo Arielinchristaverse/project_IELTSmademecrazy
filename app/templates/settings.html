@@ -1,34 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>설정</h1>
-<p class="sub">근무 유형별 하루 공부 가능 시간과 알림 시각, 알림 받는 방법을 정합니다.</p>
+<p class="sub">근무 유형별 하루 공부 가능 시간과 알림 시각을 정하고, 이 기기의 알림을 관리합니다.</p>
 {% if saved %}<div class="notice">저장했습니다.</div>{% endif %}
 {% if msg %}<div class="notice" role="status">{{ msg }}</div>{% endif %}
 <div class="quick-links">
   <a href="/tasks">공부 과제 관리 →</a>
   <a href="/sentences">영어 문장 →</a>
   <a href="/account">계정 · 로그아웃 →</a>
+  {% if user.is_admin %}<a href="/admin">관리자 화면 →</a>{% endif %}
 </div>
 <h2 id="shifts">근무 유형</h2>
 {% set back = '/settings' %}
 {% include "partials/shift_list.html" %}
 
-<form method="post" action="/settings">
-  <h2>알림 받는 방법</h2>
-  <div class="seg" role="radiogroup" aria-label="알림 받는 방법">
-    {% for value, label in [('push','웹 푸시'),('email','메일'),('both','둘 다')] %}
-      {% set needs = ['push','email'] if value == 'both' else [value] %}
-      {% set ok = needs | select('in', channels_enabled) | list | length == needs | length %}
-      <label class="{{ '' if ok else 'disabled' }}"><input type="radio" name="notify_channel" value="{{ value }}"
-        {{ 'checked' if user.notify_channel == value }} {{ '' if ok else 'disabled' }}>{{ label }}</label>
-    {% endfor %}
-  </div>
-  <h2>메일 받는 주소</h2>
-  <input type="email" name="notify_email" value="{{ user.notify_email }}" placeholder="비워두면 {{ user.email }}" style="width:320px">
-  <button style="margin-top:16px">저장</button>
-</form>
-
-<h2 id="push">이 기기 알림 (웹 푸시)</h2>
+<h2 id="push">알림</h2>
+<p class="muted" style="font-size:13px;margin-top:-4px">알림은 앱 푸시로만 보내요. 알림을 받을 기기마다 한 번씩 켜 주세요.</p>
 {% include "partials/push_box.html" %}
 {% if devices %}
 <table class="list" style="margin-top:12px">
@@ -55,37 +42,5 @@
   <button class="ghost">적용</button>
 </form>
 
-{#- 일반 계정: 테스트 메일 버튼만. 관리자: 서버 메일 설정 상태까지 -#}
-{% if user.is_admin and mail %}
-<h2 id="mail">메일 연결 상태 <span class="tag">관리자</span></h2>
-<table class="list">
-  <tr><th style="width:180px">발송 방식</th><td>
-    {% if mail.backend == 'smtp' %}<span class="tag accent">Gmail 실제 발송</span>
-    {% else %}<span class="tag">저장만 함 (console)</span> <span class="muted">실제로 보내려면 MAIL_BACKEND=smtp</span>{% endif %}
-  </td></tr>
-  <tr><th>보내는 Gmail</th><td>{{ mail.address or '— (GMAIL_ADDRESS 미설정)' }}</td></tr>
-  <tr><th>앱 비밀번호</th><td>{{ '등록됨' if mail.has_password else '— (GMAIL_APP_PASSWORD 미설정)' }}</td></tr>
-  <tr><th>메일 버튼 주소</th><td class="muted">{{ mail.base_url }}</td></tr>
-</table>
-{% if mail.backend == 'smtp' and not (mail.address and mail.has_password) %}
-<p class="warn">⚠ Gmail 주소 또는 앱 비밀번호가 비어 있어 발송이 실패합니다.</p>
-{% endif %}
-{% else %}
-<h2 id="mail">테스트 메일</h2>
-{% endif %}
-<form method="post" action="/settings/mail/test" class="row" style="margin:14px 0 6px">
-  <button class="ghost">테스트 메일 보내기</button>
-  <span class="muted" style="font-size:13px">{{ user.mail_to }} 로 오늘 과제 메일을 보냅니다.</span>
-</form>
-{% if mail_test == 'ok' %}<p class="notice" role="status">테스트 메일을 보냈습니다.</p>
-{% elif mail_test == 'console' %}<p class="notice" role="status">console 모드라 실제로 보내지 않고 저장했습니다. 이번 주 화면의 '메일 미리보기'로 확인하세요.</p>
-{% elif mail_test in mail_codes %}<p class="warn" role="alert">테스트 메일 실패 · 오류 코드 <code class="mail-error-code">{{ mail_test }}</code></p>
-{% endif %}
-{% if user.is_admin %}<p class="muted" style="font-size:13px">이 값들은 화면이 아니라 환경 변수(Render Environment, Codespaces Secrets, .env)로 설정합니다. 바꾼 뒤에는 서버를 다시 시작해야 반영됩니다.</p>{% endif %}
 
-{% if user.is_admin %}
-<h2>데이터 백업 <span class="tag">관리자</span></h2>
-<p class="muted" style="font-size:13px">현재 모든 데이터(설정, 달력, 과제, 배정 기록)를 파일 하나로 내려받습니다. 큰 업데이트 전에 받아 두세요.</p>
-<a class="btn ghost" href="/admin/backup">DB 백업 다운로드</a>
-{% endif %}
 {% endblock %}

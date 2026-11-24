@@ -2,6 +2,7 @@
 import os
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 
 from ..config import settings
 
@@ -38,3 +39,12 @@ def backup_dir(url: str | None = None) -> str:
 def make_backup(label: str = "manual", url: str | None = None) -> str:
     name = f"app-{label}-{datetime.now():%Y%m%d-%H%M%S}.db"
     return backup_to(os.path.join(backup_dir(url), name), url)
+
+
+def list_backups(url: str | None = None) -> list[tuple[str, datetime]]:
+    """backups/ 의 백업 파일 (이름, 수정 시각), 최신순."""
+    d = Path(backup_dir(url))
+    if not d.is_dir():
+        return []
+    files = [(p.name, datetime.fromtimestamp(p.stat().st_mtime)) for p in d.glob("app-*.db") if p.is_file()]
+    return sorted(files, key=lambda x: x[1], reverse=True)

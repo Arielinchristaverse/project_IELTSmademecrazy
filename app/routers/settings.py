@@ -1,22 +1,15 @@
-import os
-import tempfile
 from datetime import time
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from starlette.background import BackgroundTask
 
-from .. import clock
 from ..config import settings
 from ..db import get_db
-from ..deps import admin_user, current_user, safe_back
-from ..models import MAX_ACTIVE_SHIFTS, NOTIFY_CHOICES, PushSubscription, ShiftType, User
+from ..deps import current_user
+from ..models import MAX_ACTIVE_SHIFTS, PushSubscription, ShiftType, User
 from ..services import shifts as shift_svc
-from ..services.backup import backup_to
-from ..services.daily import send_test_mail
-from ..services.mailer import MAIL_ERROR_CODES, error_code, mail_status
 from ..templating import templates
 
 router = APIRouter()
@@ -70,10 +63,6 @@ def settings_page(
             "msg": request.query_params.get("msg"),
             "user": user,
             "saved": saved,
-            "mail": mail_status() if user.is_admin else None,  # 서버 메일 설정은 관리자에게만
-            "mail_test": request.query_params.get("mail_test"),
-            "mail_codes": MAIL_ERROR_CODES,
-            "channels_enabled": settings.notify_channels,
             "devices": [
                 {"sub": d, "label": device_label(d.user_agent)}
                 for d in db.scalars(
@@ -90,35 +79,8 @@ def settings_page(
 async def save_settings(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     form = await request.form()
     apply_shift_form(db, user, form)
-    user.notify_email = (form.get("notify_email") or "").strip()
-    channel = form.get("notify_channel")
-    if channel in NOTIFY_CHOICES:
-        user.notify_channel = channel
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)
-
-
-@router.post("/settings/mail/test")
-def settings_test_mail(db: Session = Depends(get_db), user: User = Depends(current_user)):
-    """설정 화면의 테스트 메일. 실패하면 오류 코드만 돌려준다(메시지·서버 응답·설정 값은 화면에 내지 않음)."""
-    try:
-        send_test_mail(db, user, clock.today())
-        result = "console" if settings.mail_backend == "console" else "ok"
-    except Exception as e:  # noqa: BLE001
-        db.rollback()
-        result = error_code(e)
-        print(f"[mail:test] user={user.id} failed code={result} ({type(e).__name__})", flush=True)
-    return RedirectResponse(f"/settings?mail_test={result}#mail", status_code=303)
-
-
-@router.post("/settings/channel")
-async def save_channel(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    """알림 받는 방법만 바꾸기 (예: 알림을 거부한 경우 '메일로 받기')."""
-    form = await request.form()
-    if form.get("channel") in NOTIFY_CHOICES:
-        user.notify_channel = form.get("channel")
-        db.commit()
-    return RedirectResponse(safe_back(form.get("back"), "/settings") + "?channel=1", status_code=303)
 
 
 THEMES = ("auto", "light", "dark")
@@ -135,17 +97,3 @@ async def save_theme(request: Request, _: User = Depends(current_user)):
     else:
         resp.delete_cookie("theme")
     return resp
-
-
-@router.get("/admin/backup")
-def download_backup(_: User = Depends(admin_user)):
-    """현재 DB의 일관된 사본을 내려받는다 (관리자 전용)."""
-    fd, tmp = tempfile.mkstemp(suffix=".db")
-    os.close(fd)
-    backup_to(tmp)
-    return FileResponse(
-        tmp,
-        media_type="application/octet-stream",
-        filename=f"afterwork-backup-{clock.now():%Y%m%d-%H%M%S}.db",
-        background=BackgroundTask(os.remove, tmp),
-    )

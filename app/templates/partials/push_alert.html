@@ -1,0 +1,11 @@
+{#- 알림 상태 배너: push-status.js 가 상태를 확인한 뒤에만 보인다. 설정 화면(알림 상자가 있음)에서는 넣지 않는다. -#}
+<div id="push-alert" class="push-alert" role="status" hidden>
+  <p data-text></p>
+  <div class="row">
+    <button type="button" data-enable hidden>다시 켜기</button>
+    <a class="btn ghost" data-install href="/install" hidden>설치 방법</a>
+    <a class="btn ghost" data-howto href="/settings#push" hidden>허용 방법</a>
+    <button type="button" class="link" data-later>나중에</button>
+  </div>
+</div>
+<script src="{{ asset('push-status.js') }}" defer></script>

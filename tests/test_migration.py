@@ -61,7 +61,8 @@ def test_old_db_is_migrated_to_admin_with_backup(tmp_path, monkeypatch):
     uid, email, step, admin, cursor, notify, channel = con.execute(
         "select id, email, onboarding_step, is_admin, sentence_cursor, notify_email, notify_channel from users"
     ).fetchone()
-    assert (email, step, admin, cursor, notify, channel) == ("me@example.com", 3, 1, 7, "old@example.com", "both")
+    # 0007(푸시 전용): 알림 수단은 push, 쓰지 않는 메일 받는 주소는 비움
+    assert (email, step, admin, cursor, notify, channel) == ("me@example.com", 3, 1, 7, "", "push")
     for table in ["shift_types", "calendar_days", "tasks", "weeks", "assignments", "sentences", "notify_logs"]:
         owners = {r[0] for r in con.execute(f"select user_id from {table}")}
         assert owners == {uid}, table

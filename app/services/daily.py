@@ -1,20 +1,14 @@
-"""하루치 준비 · 오늘 화면/메일 내용 · 사용자별 알림 발송 (스케줄러와 테스트 발송이 공유)."""
-import secrets
+"""하루치 준비 · 오늘 화면 내용 · 사용자별 푸시 알림 발송 (스케줄러와 테스트 발송이 공유)."""
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import clock
-from ..config import settings
 from ..models import (
     NOTIFY_DAILY,
     NOTIFY_REMIND,
     ONBOARDING_DONE,
-    ActionToken,
     Assignment,
     CalendarDay,
     NotifyLog,
@@ -33,13 +27,8 @@ from .allocator import (
 )
 from . import notify_text as T
 from . import push
-from .mailer import send_mail
+from .counters import bump
 from .progress import week_progress
-
-_env = Environment(
-    loader=FileSystemLoader(str(Path(__file__).resolve().parent.parent / "templates" / "email")),
-    autoescape=select_autoescape(["html"]),
-)
 
 WEEKDAYS_KO = "월화수목금토일"
 RETRY_MINUTES = 10
@@ -82,7 +71,7 @@ def prepare_day(db: Session, user: User, d: date) -> list[Assignment]:
         cal = get_calendar_day(db, user.id, d)
         if is_rest_day(d, cal):
             generate_week(db, user.id, week_start_of(d), d)
-        # 영어 문장은 날짜가 넘어갈 때 한 번만 다음 문장으로 → 그날의 메일·푸시·오늘 화면이 같은 문장
+        # 영어 문장은 날짜가 넘어갈 때 한 번만 다음 문장으로 → 그날의 오늘 화면은 하루 종일 같은 문장
         if last is not None and d > last:
             user.sentence_cursor += 1
         if last is None or d > last:
@@ -94,7 +83,7 @@ def prepare_day(db: Session, user: User, d: date) -> list[Assignment]:
 def build_today_context(
     db: Session, user: User, d: date, assignments: list[Assignment] | None = None
 ) -> dict:
-    """오늘 화면과 메일이 공통으로 쓰는 내용."""
+    """오늘 화면 내용."""
     if assignments is None:
         assignments = day_assignments(db, user.id, d)
     cal = get_calendar_day(db, user.id, d)
@@ -108,43 +97,6 @@ def build_today_context(
         "pending": pending_items(db, user.id),
         "sentence": _sentence_for(db, user),
     }
-
-
-def build_mail(db: Session, user: User, d: date, assignments: list[Assignment], kind: str = NOTIFY_DAILY):
-    """메일 내용. 재알림이면 assignments 는 아직 기록하지 않은 과제만 받는다."""
-    expires = clock.now() + timedelta(days=settings.token_valid_days)
-    items = []
-    for a in assignments:
-        links = {}
-        if a.status == "scheduled":
-            for action in ("done", "missed"):
-                tok = ActionToken(
-                    token=secrets.token_urlsafe(32), assignment_id=a.id, action=action, expires_at=expires
-                )
-                db.add(tok)
-                links[action] = f"{settings.base_url}/a/{tok.token}"
-        items.append({"a": a, "links": links})
-    db.commit()
-
-    ctx = build_today_context(db, user, d, assignments)
-    ctx.update(
-        items=items,
-        base_url=settings.base_url,
-        heading=T.REMIND_MAIL_HEADING if kind == NOTIFY_REMIND else T.DAILY_MAIL_HEADING,
-    )
-    html = _env.get_template("daily.html").render(**ctx)
-    text_lines = [ctx["greeting"], ""]
-    for it in items:
-        text_lines.append(f"- {it['a'].task.name} ({it['a'].task.duration_min}분)")
-        for action, label in (("done", "달성"), ("missed", "미달성")):
-            if action in it["links"]:
-                text_lines.append(f"  {label}: {it['links'][action]}")
-    text_lines.append(f"\n이번 주 진척도: {ctx['progress']}%")
-    if kind == NOTIFY_REMIND:
-        subject = T.REMIND_MAIL_SUBJECT.format(count=len(items))
-    else:
-        subject = T.DAILY_MAIL_SUBJECT.format(m=d.month, d=d.day, wd=WEEKDAYS_KO[d.weekday()], count=len(items))
-    return subject, html, "\n".join(text_lines)
 
 
 def push_body(user: User, d: date, kind: str, assignments: list[Assignment]) -> str:
@@ -173,13 +125,6 @@ class ChannelResult:
         self.ok, self.detail, self.skipped = ok, detail, skipped
 
 
-def _send_email(
-    db: Session, user: User, d: date, assignments: list[Assignment], test: bool, kind: str = NOTIFY_DAILY
-) -> ChannelResult:
-    subject, html, text = build_mail(db, user, d, assignments, kind)
-    return ChannelResult(True, send_mail(user.mail_to, ("[테스트] " if test else "") + subject, html, text, owner_id=user.id))
-
-
 def _send_push(
     db: Session, user: User, d: date, assignments: list[Assignment], test: bool, kind: str = NOTIFY_DAILY
 ) -> ChannelResult:
@@ -189,6 +134,8 @@ def _send_push(
         T.PUSH_TITLE, push_body(user, d, kind, assignments), url="/today", tag=f"{kind}-{d.isoformat()}"
     )
     r = push.send_to_user(db, user, data)
+    if r.removed:
+        bump(db, "push_removed", r.removed)  # 관리자 화면: 만료되어 지운 구독 수
     if r.total == 0:
         return ChannelResult(False, "알림을 받을 기기가 없습니다. 설정에서 '알림 켜기'를 해 주세요.", skipped=True)
     detail = f"{r.sent}대 기기에 보냄" + (f", 만료된 기기 {r.removed}대 정리" if r.removed else "")
@@ -199,29 +146,18 @@ def _send_push(
     return ChannelResult(False, "푸시 실패: " + "; ".join(r.errors[:3]))
 
 
-# 채널 이름 → 발송 함수
+# 채널 이름 → 발송 함수 (푸시 전용. 발송 기록·재시도 구조는 채널 단위로 유지)
 CHANNELS: dict[str, Callable[..., ChannelResult]] = {
-    "email": _send_email,
     "push": _send_push,
 }
 
 
 def user_channels(user: User) -> list[str]:
-    wanted = []
-    if user.wants_push:
-        wanted.append("push")
-    if user.wants_email:
-        wanted.append("email")
-    return [c for c in wanted if c in settings.notify_channels and c in CHANNELS]
+    return ["push"]
 
 
 def send_test_push(db: Session, user: User, d: date) -> ChannelResult:
     return _send_push(db, user, d, day_assignments(db, user.id, d), test=True)
-
-
-def send_test_mail(db: Session, user: User, d: date) -> str:
-    assignments = prepare_day(db, user, d)
-    return _send_email(db, user, d, assignments, test=True).detail
 
 
 def _logs(db: Session, user: User, d: date, kind: str) -> dict[str, NotifyLog]:

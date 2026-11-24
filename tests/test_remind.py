@@ -1,6 +1,5 @@
 """미달성(미기록) 과제 재알림."""
 import json
-import os
 import sqlite3
 from datetime import date, datetime, time, timedelta
 
@@ -17,7 +16,7 @@ from app.services.daily import notify_due, remind_due, run_due
 from app.services.users import get_or_create_user
 from scripts import migrate
 from tests.conftest import login
-from tests.test_push import add_sub, pusher  # noqa: F401  (pusher 는 fixture)
+from tests.conftest import add_sub
 
 MON = date(2026, 11, 2)
 
@@ -164,13 +163,12 @@ def test_no_remind_without_devices(db, user, pusher):
     assert remind_due(db, user, at(12)) == []
 
 
-def test_remind_per_channel_follows_daily_success(db, user, pusher):
-    """푸시 정기 알림은 실패, 메일은 성공 → 재알림은 메일로만."""
-    setup(db, user, channel="both", endpoint="https://web.push.apple.com/down")
+def test_no_remind_when_daily_push_failed(db, user, pusher):
+    """정기 푸시가 실패(재시도 소진 전)했으면 재알림은 보내지 않는다."""
+    setup(db, user, endpoint="https://web.push.apple.com/down")
     pusher["fail"]["https://web.push.apple.com/down"] = 500
     notify_due(db, user, at(6))
-    out = remind_due(db, user, at(12))
-    assert [o.split("(")[0] for o in out] == ["email"]
+    assert remind_due(db, user, at(12)) == []
     assert remind_calls(pusher) == []
 
 
@@ -210,23 +208,6 @@ def test_expired_subscription_removed_on_remind(db, user, pusher):
     remind_due(db, user, at(12))
     assert db.scalar(select(PushSubscription)) is None
     assert remind_logs(db, user)[0].status == "skipped"
-
-
-def test_remind_mail_lists_only_unrecorded_tasks(db, user):
-    setup(db, user, channel="email")
-    notify_due(db, user, at(6))
-    tasks = todays(db, user)
-    tasks[0].status = "done"
-    done_name = tasks[0].task.name
-    db.commit()
-    before = set(os.listdir("outbox"))
-    remind_due(db, user, at(12))
-    new = sorted(set(os.listdir("outbox")) - before)
-    html = open(os.path.join("outbox", new[-1]), encoding="utf-8").read()
-    assert T.REMIND_MAIL_HEADING in html
-    task_section = html.split(T.REMIND_MAIL_HEADING)[1].split("이번 주 진척도")[0]
-    assert done_name not in task_section
-    assert all(a.task.name in task_section for a in tasks[1:])
 
 
 def test_other_users_records_do_not_count(db, user, pusher):

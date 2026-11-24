@@ -36,7 +36,7 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
 def admin_user(user: User = Depends(current_user)) -> User:
     if not user.is_admin:
-        raise HTTPException(status_code=403, detail="관리자만 사용할 수 있습니다.")
+        raise HTTPException(status_code=404)  # 관리자 기능이 있다는 사실도 드러내지 않는다
     return user
 
 

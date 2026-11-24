@@ -1,4 +1,4 @@
-"""'오늘' 화면: 알림을 누르면 열리는 화면. 메일과 같은 내용(build_today_context)을 보여주고,
+"""'오늘' 화면: 알림을 누르면 열리는 화면. 오늘 배정(build_today_context)을 보여주고,
 로그인된 상태에서 바로 달성/미달성을 기록한다 (기록은 /assignments/{id}/status 재사용)."""
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session

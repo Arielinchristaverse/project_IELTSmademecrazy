@@ -24,12 +24,12 @@ def test_startup_sync_moves_admin_and_keeps_data(db, user, monkeypatch, capsys):
     with TestClient(app) as c:  # 서버 시작 = 동기화
         assert admins(db) == []  # 예전 관리자 해제 (새 계정은 아직 없음)
         login(c, OLD)
-        assert c.get("/admin/backup").status_code == 403  # 다시 로그인해도 관리자로 돌아오지 않음
+        assert c.get("/admin/backup").status_code == 404  # 다시 로그인해도 관리자로 돌아오지 않음
         assert "기존 과제" in c.get("/tasks").text  # 데이터는 그대로
         assert admins(db) == []
         c.post("/logout")
         login(c, NEW)  # 새 주소 첫 로그인 → 관리자
-        assert c.get("/admin/backup").status_code != 403
+        assert c.get("/admin/backup").status_code == 200
     assert admins(db) == [NEW]
     out = capsys.readouterr().out
     assert "[admin] 관리자 동기화: 부여 0 · 해제 1" in out

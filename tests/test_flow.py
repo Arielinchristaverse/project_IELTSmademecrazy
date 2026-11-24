@@ -2,12 +2,12 @@ from datetime import date, datetime, time, timedelta
 
 from fastapi.testclient import TestClient
 
-from tests.conftest import login
+from tests.conftest import add_sub, login
 from sqlalchemy import select
 
-from app.models import ActionToken, Assignment, CalendarDay, NotifyLog, Task
+from app.models import Assignment, CalendarDay, NotifyLog, Task
 from app.services.allocator import generate_week, pending_items
-from app.services.daily import notify_due, prepare_day, send_test_mail
+from app.services.daily import notify_due, prepare_day
 from app.services.progress import week_progress
 
 MON = date(2026, 11, 2)
@@ -50,22 +50,19 @@ def test_generate_and_auto_miss_and_weekend_makeup(db, user):
     assert pending_items(db, user.id) == []
 
 
-def test_mail_buttons_record_once(db, user):
-    setup_month(db, user, ["DAY"] * 5 + ["OFF", "OFF"])
-    client = TestClient(__import__("app.main", fromlist=["app"]).app)
-    send_test_mail(db, user, MON)
-    toks = db.scalars(select(ActionToken)).all()
-    assert toks
-    done_tok = next(t for t in toks if t.action == "done")
-    r = client.get(f"/a/{done_tok.token}")
-    assert r.status_code == 200 and "달성 기록 완료" in r.text
-    # 같은 배정의 '미달성' 링크는 더 이상 동작하지 않음
-    other = next(t for t in toks if t.assignment_id == done_tok.assignment_id and t.action == "missed")
-    r2 = client.get(f"/a/{other.token}")
-    assert "이미 기록됨" in r2.text
-    db.expire_all()
-    assert week_progress(db, user.id, MON) > 0
-    assert client.get("/a/nope").status_code == 404
+def test_mail_routes_are_gone(db, user):
+    """메일 기능 제거: 예전 메일 버튼·테스트 메일·미리보기 주소는 더 이상 없다."""
+    from app.main import app
+
+    with TestClient(app) as c:
+        login(c)
+        assert c.get("/a/sometoken").status_code == 404
+        assert c.post("/mail/test", data={"day": MON.isoformat()}).status_code in (404, 405)
+        assert c.get("/mail/preview/u1-x.html").status_code == 404
+        assert c.post("/settings/mail/test").status_code in (404, 405)
+        assert c.post("/settings/channel", data={"channel": "email"}).status_code in (404, 405)
+        page = c.get("/settings").text
+        assert "메일" not in page and "notify_channel" not in page and "notify_email" not in page
 
 
 def test_makeup_done_marks_original_done(db, user):
@@ -86,8 +83,9 @@ def test_makeup_done_marks_original_done(db, user):
     assert week_progress(db, user.id, MON) > before
 
 
-def test_scheduler_sends_once_after_send_time(db, user):
+def test_scheduler_sends_once_after_send_time(db, user, pusher):
     setup_month(db, user, ["DAY"] * 7)
+    add_sub(db, user, "https://web.push.apple.com/me")
     t = datetime.combine(MON, time(5, 0))
     assert notify_due(db, user, t) == []  # 발송 시각(05:30) 전
     assert notify_due(db, user, t.replace(hour=6)) != []
@@ -95,7 +93,7 @@ def test_scheduler_sends_once_after_send_time(db, user):
     assert db.scalar(select(NotifyLog)).status == "sent"
 
 
-def test_excluded_day_no_mail(db, user):
+def test_excluded_day_no_notification(db, user):
     setup_month(db, user, ["DAY"] * 7)
     db.scalar(select(CalendarDay).where(CalendarDay.user_id == user.id, CalendarDay.date == MON)).excluded = True
     db.commit()
@@ -128,21 +126,6 @@ def test_future_week_does_not_take_pending(db, user):
     assert next_sat == []
 
 
-def test_mail_preview_page(db, user):
-    from app.main import app
-
-    setup_month(db, user, ["DAY"] * 7)
-    with TestClient(app) as c:
-        login(c)
-        c.post("/mail/test", data={"day": MON.isoformat()})
-        page = c.get(f"/?start={MON}").text
-        assert "/mail/preview/" in page
-        name = page.split("/mail/preview/")[1].split('"')[0]
-        r = c.get(f"/mail/preview/{name}")
-        assert r.status_code == 200 and "오늘의 과제" in r.text
-        assert c.get("/mail/preview/..%2F.env").status_code == 404
-
-
 def test_codespaces_base_url(monkeypatch):
     from app.config import _default_base_url
 
@@ -169,7 +152,7 @@ def test_healthz_is_public():
     from app.main import app
 
     with TestClient(app) as c:
-        assert c.get("/healthz").json() == {"ok": True}
+        assert c.get("/healthz").json() == {"ok": True, "db": "ok"}  # 설정·사용자 정보 없음
 
 
 def test_render_base_url(monkeypatch):
@@ -198,13 +181,11 @@ def test_backup_download_is_valid_sqlite(db, user, tmp_path):
     con.close()
 
 
-def test_production_requires_vapid_when_push_enabled(monkeypatch):
+def test_production_requires_vapid(monkeypatch):
     from app.config import settings
 
     monkeypatch.setattr(type(settings), "is_production", True)
     monkeypatch.setattr(type(settings), "secret_key", "real-secret")
     monkeypatch.setattr(type(settings), "dev_login", False)
     monkeypatch.setattr(type(settings), "vapid_private_key", "")
-    assert any("VAPID" in p for p in settings.production_problems())
-    monkeypatch.setattr(type(settings), "notify_channels", ("email",))
-    assert settings.production_problems() == []
+    assert any("VAPID" in p for p in settings.production_problems())  # 푸시 전용이라 항상 필요
