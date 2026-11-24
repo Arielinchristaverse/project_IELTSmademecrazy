@@ -1,0 +1,37 @@
+{#- 여유가 생기면 해볼 과제: 시간 부족으로 이번 주 배정에 못 넣은 과제. 기록·되돌리기는 이번 주만 -#}
+{% set check_svg %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>{% endset %}
+<section class="extras" id="extras" aria-labelledby="extras-title">
+  <h2 id="extras-title">여유가 생기면 해볼 과제</h2>
+  <p class="sub">이번 주 공부 시간이 모자라 배정하지 못한 과제예요. 따로 해냈다면 체크해 두세요. 진척도에 반영돼요.</p>
+  {% if not extras_editable %}<p class="fine">이번 주가 아니라서 기록하거나 되돌릴 수 없어요.</p>{% endif %}
+  <ul class="cards">
+    {% for it in extras %}
+    <li class="card extra {{ 'done' if it.done }}">
+      {% if extras_editable and not it.done %}
+      <form method="post" action="/extras/{{ it.task.id }}/done">
+        <input type="hidden" name="week_start" value="{{ ws }}">
+        <button class="check" aria-label="{{ it.task.name }} 추가 달성 기록 (남은 {{ it.remaining }}회)" aria-pressed="false">{{ check_svg }}</button>
+      </form>
+      {% else %}
+      <span class="check" role="img" aria-label="{{ it.task.name }} {{ '완료' if it.done else '기록할 수 없음' }}">{{ check_svg }}</span>
+      {% endif %}
+      <div class="card-main">
+        <div class="card-title">{{ it.task.name }}</div>
+        <div class="card-sub">{{ it.task.subject }}{% if it.task.subject %} · {% endif %}{{ it.task.duration_min }}분 ·
+          {% if it.over %}기록 {{ it.recorded }}회 · 다시 배정되면서 못 넣은 횟수가 {{ it.shortfall }}회로 줄었어요
+          {% elif it.done %}완료 · {{ it.recorded }}회 기록
+          {% else %}남은 {{ it.remaining }}회 · 못 넣은 {{ it.shortfall }}회{% if it.recorded %} · 기록 {{ it.recorded }}회{% endif %}{% endif %}
+        </div>
+      </div>
+      <div class="card-side">
+        {% if extras_editable and it.recorded %}
+        <form method="post" action="/extras/{{ it.task.id }}/undo">
+          <input type="hidden" name="week_start" value="{{ ws }}">
+          <button class="link" aria-label="{{ it.task.name }} 추가 달성 1회 되돌리기">되돌리기</button>
+        </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>

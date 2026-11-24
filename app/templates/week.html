@@ -35,7 +35,8 @@
   </div>
 </div>
 
-{% if week and week.warnings %}
+{% if extras %}{% include "partials/extra_list.html" %}
+{% elif week and week.warnings %}{# 예전 기록 중 숫자로 옮기지 못한 경고(이름이 겹치는 과제 등)는 다음 재배정 전까지 문장으로 #}
   {% for w in week.warnings.split('\n') %}<p class="warn">⚠ {{ w }}</p>{% endfor %}
 {% endif %}
 

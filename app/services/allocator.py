@@ -14,11 +14,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from .. import clock
-from ..models import ActionToken, Assignment, CalendarDay, Task, Week
+from ..models import ActionToken, Assignment, CalendarDay, Task, Week, WeekShortfall
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +318,11 @@ def generate_week(db: Session, uid: int, week_start: date, today: date) -> Week:
         db.add(week)
     week.generated_at = clock.now()
     week.warnings = "\n".join(warnings)
+    # 못 넣은 횟수를 숫자로도 저장 ('여유가 생기면 해볼 과제'). 그 주 전체를 다시 쓴다
+    db.execute(delete(WeekShortfall).where(WeekShortfall.user_id == uid, WeekShortfall.week_start == week_start))
+    for tid, n in remaining.items():
+        if n > 0:
+            db.add(WeekShortfall(user_id=uid, week_start=week_start, task_id=tid, count=n))
     db.commit()
     return week
 

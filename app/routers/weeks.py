@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .. import clock
 from ..db import get_db
 from ..deps import current_user, owned, safe_back
-from ..models import Assignment, CalendarDay, NotifyLog, User
+from ..models import Assignment, CalendarDay, NotifyLog, Task, User
 from ..services.allocator import (
     day_capacity,
     generate_week,
@@ -19,6 +19,7 @@ from ..services.allocator import (
 )
 from ..config import settings
 from ..services.daily import send_test_mail
+from ..services import extras as extra_svc
 from ..services.mailer import latest_outbox_file, read_outbox
 from ..services.progress import set_status, week_progress
 from ..templating import templates
@@ -76,6 +77,8 @@ def week_page(
             "days": days,
             "progress": week_progress(db, user.id, ws),
             "pending": pending_items(db, user.id),
+            "extras": extra_svc.week_extras(db, user.id, ws),
+            "extras_editable": extra_svc.editable(ws, today),
             "prev": ws - timedelta(days=7),
             "next": ws + timedelta(days=7),
             "today": today,
@@ -101,6 +104,36 @@ def test_mail(day: str = Form(...), db: Session = Depends(get_db), user: User = 
     except Exception as e:  # noqa: BLE001
         result = f"발송 실패: {e}"
     return RedirectResponse(f"/?start={week_start_of(d)}&msg=테스트 메일 — {result}", status_code=303)
+
+
+@router.post("/extras/{task_id}/{action}")
+def extra_action(
+    task_id: int,
+    action: str,
+    week_start: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """'여유가 생기면 해볼 과제' 추가 달성 기록(done) / 되돌리기(undo). 다른 사용자 과제는 404."""
+    task = owned(db, Task, task_id, user)
+    try:
+        ws = week_start_of(date.fromisoformat(week_start))
+    except ValueError:
+        ws = None
+    msg = ""
+    try:
+        if ws is None:
+            raise extra_svc.ExtraRefused("잘못된 주입니다.")
+        if action == "done":
+            extra_svc.add_extra(db, task, ws)
+        elif action == "undo":
+            extra_svc.undo_extra(db, task, ws)
+        else:
+            raise HTTPException(status_code=404)
+    except extra_svc.ExtraRefused as e:
+        msg = str(e)
+    url = f"/?start={ws or week_start_of(clock.today())}" + (f"&msg={msg}" if msg else "") + "#extras"
+    return RedirectResponse(url, status_code=303)
 
 
 @router.post("/assignments/{aid}/status")

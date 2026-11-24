@@ -292,6 +292,12 @@ details.archived summary { cursor: pointer; font-size: 13px; color: var(--text-s
 .card-side { text-align: right; font-size: 13px; white-space: nowrap; }
 .card-side .state { display: block; color: var(--text-secondary); font-size: 12px; }
 .card.done .card-side .state { color: var(--accent-ink); font-weight: 600; }
+/* 여유가 생기면 해볼 과제 (이번 주 화면) */
+.extras { margin: 8px 0 32px; }
+.extras h2 { margin-top: 8px; }
+.extras .sub { margin-bottom: 8px; }
+.card.extra.done .card-title { color: var(--text-secondary); }
+span.check { cursor: default; }
 .empty { padding: 20px 0; color: var(--text-secondary); border-bottom: 1px solid var(--border-grid); }
 .progress-block { padding: 28px 0 22px; border-bottom: 1px solid var(--border-grid); }
 .progress-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }

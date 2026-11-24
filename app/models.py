@@ -155,6 +155,31 @@ class Week(Base):
     warnings: Mapped[str] = mapped_column(Text, default="")  # 줄바꿈 구분
 
 
+class WeekShortfall(Base):
+    """시간 부족으로 그 주 배정에 넣지 못한 횟수 (배정을 만들 때마다 그 주 전체를 다시 씀)."""
+
+    __tablename__ = "week_shortfalls"
+    __table_args__ = (UniqueConstraint("user_id", "week_start", "task_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
+    week_start: Mapped[date] = mapped_column(Date)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
+    count: Mapped[int] = mapped_column(Integer)
+
+
+class ExtraCompletion(Base):
+    """'여유가 생기면 해볼 과제'의 추가 달성 1회. 날짜는 누른 날(Asia/Seoul). 배정·보류·알림과 무관."""
+
+    __tablename__ = "extra_completions"
+    __table_args__ = (Index("ix_extra_completions_user_week", "user_id", "week_start"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
+    week_start: Mapped[date] = mapped_column(Date)
+    date: Mapped[date] = mapped_column(Date)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class Assignment(Base):
     __tablename__ = "assignments"
     __table_args__ = (
