@@ -1,4 +1,4 @@
-"""서비스 전체 하루 집계(daily_counters). 사용자 정보는 담지 않는다."""
+"""하루 집계(daily_counters). 키에 사용자 번호가 들어갈 수 있지만 이메일·이름은 담지 않는다. 30일 뒤 정리."""
 from datetime import date
 
 from sqlalchemy import select

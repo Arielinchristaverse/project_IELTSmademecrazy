@@ -232,7 +232,8 @@ class NotifyLog(Base):
 
 
 class DailyCounter(Base):
-    """서비스 전체의 하루 집계 (사용자 정보 없음). 예: push_removed = 만료되어 지운 푸시 구독 수. 30일 뒤 정리."""
+    """하루 집계. 예: push_removed = 만료되어 지운 푸시 구독 수(서비스 전체),
+    test_push:<사용자 번호> = 그 사용자가 그날 보낸 테스트 알림 수(하루 5회 제한용). 이메일·이름 없음. 30일 뒤 정리."""
 
     __tablename__ = "daily_counters"
     __table_args__ = (UniqueConstraint("day", "key"),)
