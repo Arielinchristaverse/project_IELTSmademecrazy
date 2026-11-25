@@ -65,10 +65,11 @@ def send_to_user(db: Session, user: User, data: str) -> PushReport:
                 db.delete(sub)
                 report.removed += 1
             else:
-                sub.last_error = f"{code or ''} {e.message}".strip()[:500]
+                # 오류 코드만 남긴다 (응답 문장에는 기기 푸시 주소가 섞일 수 있음)
+                sub.last_error = f"HTTP {code}" if code else "WebPushException"
                 report.errors.append(sub.last_error)
-        except Exception as e:  # noqa: BLE001 — 네트워크 오류 등
-            sub.last_error = str(e)[:500]
+        except Exception as e:  # noqa: BLE001 — 네트워크 오류 등: 오류 종류만 (메시지에 주소가 섞일 수 있음)
+            sub.last_error = type(e).__name__
             report.errors.append(sub.last_error)
     db.commit()
     return report

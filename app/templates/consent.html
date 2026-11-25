@@ -18,6 +18,7 @@
   {% if error %}<p class="warn" role="alert">{{ error }}</p>{% endif %}
 
   <form method="post" action="/consent" class="consent-form">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
     <label class="check-line"><input type="checkbox" name="agree_terms" required>
       <span><b>(필수)</b> 이용약관에 동의해요 · <a href="/terms" target="_blank" rel="noopener">보기</a>
       <span class="fine">버전 {{ terms.version }}</span></span></label>

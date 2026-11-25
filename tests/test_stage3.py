@@ -16,7 +16,7 @@ from app.models import User
 from app.services import legal
 from app.services.users import CapacityFull, create_user, get_or_create_user, members_count, record_consent
 from scripts import migrate
-from tests.conftest import login
+from tests.conftest import csrf, login
 
 AGREE = {"agree_terms": "on", "agree_privacy": "on", "agree_age": "on"}
 
@@ -43,7 +43,7 @@ def signup(c, email):
     if r.status_code != 303:
         return r
     assert r.headers["location"] == "/consent"
-    return c.post("/consent", data=AGREE, follow_redirects=False)
+    return c.post("/consent", data={**AGREE, "csrf": csrf(c)}, follow_redirects=False)
 
 
 def users(db):
@@ -78,7 +78,7 @@ def test_full_while_on_consent_screen(db, user, cap):
     with TestClient(app) as c:
         assert c.post("/auth/dev", data={"email": "b@example.com"}, follow_redirects=False).headers["location"] == "/consent"
         member(db, "a@example.com")  # 그 사이 다른 사람이 가입
-        r = c.post("/consent", data=AGREE)
+        r = c.post("/consent", data={**AGREE, "csrf": csrf(c)})
         assert r.status_code == 403 and "정원이 가득" in r.text
     assert "b@example.com" not in users(db)
 
@@ -108,7 +108,7 @@ def test_account_delete_returns_seat(db, user, cap):
     with TestClient(app) as c:
         assert c.post("/auth/dev", data={"email": "b@example.com"}).status_code == 403
         login(c, "a@example.com")
-        c.post("/account/delete", data={"confirm_email": "a@example.com"})
+        c.post("/account/delete", data={"confirm_email": "a@example.com", "csrf": csrf(c, "/account")})
         assert db.get(User, a.id) is None or users(db).count("a@example.com") == 0
         assert signup(c, "b@example.com").headers["location"] == "/today"
 
@@ -150,7 +150,7 @@ def test_no_user_without_consent(db, user):
         for name in ("agree_terms", "agree_privacy", "agree_age"):
             assert f'name="{name}" required' in page
         assert 'href="/terms"' in page and 'href="/privacy"' in page
-        r = c.post("/consent", data={"agree_terms": "on", "agree_privacy": "on"})  # 14세 확인 빠짐
+        r = c.post("/consent", data={"agree_terms": "on", "agree_privacy": "on", "csrf": csrf(c)})  # 14세 확인 빠짐
         assert r.status_code == 400 and "필수 항목" in r.text
         assert c.get("/today", follow_redirects=False).headers["location"] == "/login"  # 로그인되지 않음
         c.post("/consent/decline")
@@ -161,9 +161,10 @@ def test_no_user_without_consent(db, user):
 def test_pending_signup_expires_after_10_minutes(db, user, monkeypatch):
     with TestClient(app) as c:
         c.post("/auth/dev", data={"email": "slow@example.com"})
+        token = csrf(c)  # 동의 화면을 연 뒤
         later = clock.now() + timedelta(minutes=11)
-        monkeypatch.setattr(clock, "now", lambda: later)
-        r = c.post("/consent", data=AGREE)
+        monkeypatch.setattr(clock, "now", lambda: later)  # 11분이 지나 제출
+        r = c.post("/consent", data={**AGREE, "csrf": token})
         assert r.status_code == 400 and "시간이 지났어요" in r.text
     assert "slow@example.com" not in users(db)
 
@@ -186,7 +187,7 @@ def test_existing_user_must_consent_once_on_any_page(db, user, cap):
         assert c.get("/account").status_code == 200  # 동의하지 않고 계정을 지울 수 있게
         page = c.get("/consent").text
         assert "이용 동의를 받고 있어요" in page and "계정 삭제" in page
-        assert c.post("/consent", data=AGREE, follow_redirects=False).headers["location"] == "/today"
+        assert c.post("/consent", data={**AGREE, "csrf": csrf(c)}, follow_redirects=False).headers["location"] == "/today"
         assert c.get("/", follow_redirects=False).status_code == 200
     db.refresh(old)
     assert old.agreed_at is not None
@@ -200,7 +201,7 @@ def test_version_bump_requires_consent_again(db, user, monkeypatch):
         monkeypatch.setattr(legal, "terms", lambda: bumped)
         assert c.get("/", follow_redirects=False).headers["location"] == "/consent"
         assert "약관이 바뀌었어요" in c.get("/consent").text
-        c.post("/consent", data=AGREE)
+        c.post("/consent", data={**AGREE, "csrf": csrf(c)})
         assert c.get("/", follow_redirects=False).status_code == 200
     db.refresh(user)
     assert user.terms_version == "2.0"
@@ -214,7 +215,7 @@ def test_admin_also_consents_and_admin_page_shows_capacity(db, user, cap):
     with TestClient(app) as c:
         login(c, agree=False)
         assert c.get("/admin", follow_redirects=False).headers["location"] == "/consent"
-        c.post("/consent", data=AGREE)
+        c.post("/consent", data={**AGREE, "csrf": csrf(c)})
         assert "1 / 7명" in c.get("/admin").text
 
 

@@ -1,10 +1,13 @@
 {# 과제 추가/수정 폼과 목록. 필요: tasks, edit, (back) #}
+{% set task_error = request.query_params.get('task_error') %}
+{% if task_error == 'length' %}<p class="warn" role="alert">과제명은 1~50자, 과목은 20자까지 입력해 주세요.</p>
+{% elif task_error == 'count' %}<p class="warn" role="alert">과제는 30개까지 만들 수 있어요. 안 쓰는 과제를 수정해 다시 써 주세요.</p>{% endif %}
 <form method="post" action="/tasks" class="row" style="margin-bottom:24px">
   {% if edit %}<input type="hidden" name="task_id" value="{{ edit.id }}">{% endif %}
   {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
-  <input name="name" placeholder="과제명" required value="{{ edit.name if edit }}" style="width:220px">
-  <input name="subject" placeholder="과목" value="{{ edit.subject if edit }}" style="width:120px">
-  <input type="number" name="duration_min" min="1" placeholder="소요(분)" required value="{{ edit.duration_min if edit }}" style="width:100px">
+  <input name="name" placeholder="과제명" required maxlength="50" value="{{ edit.name if edit }}" style="width:220px">
+  <input name="subject" placeholder="과목" maxlength="20" value="{{ edit.subject if edit }}" style="width:120px">
+  <input type="number" name="duration_min" min="1" max="1440" placeholder="소요(분)" required value="{{ edit.duration_min if edit }}" style="width:100px">
   <input type="number" name="weekly_count" min="1" max="7" placeholder="주당 횟수" required value="{{ edit.weekly_count if edit }}" style="width:100px">
   <button>{{ '수정' if edit else '추가' }}</button>
   {% if edit %}<a href="{{ back or '/tasks' }}" class="muted">취소</a>{% endif %}

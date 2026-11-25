@@ -199,9 +199,9 @@ def _send(
             log.status = "skipped" if r.skipped else ("sent" if r.ok else "failed")
             log.error = "" if r.ok else r.detail
             results.append(f"{ch}: {r.detail}" if kind == NOTIFY_DAILY else f"{ch}(재알림): {r.detail}")
-        except Exception as e:  # noqa: BLE001
-            log.status, log.error = "failed", str(e)
-            results.append(f"{ch}: 발송 실패: {e}")
+        except Exception as e:  # noqa: BLE001 — 오류 종류만 남긴다 (메시지에 기기 주소 등이 섞일 수 있음)
+            log.status, log.error = "failed", type(e).__name__
+            results.append(f"{ch}: 발송 실패: {type(e).__name__}")
         db.commit()
     return results
 
@@ -260,5 +260,5 @@ def run_due(db: Session, now: datetime) -> list[str]:
                     out.append(f"user={user.id} {r}")
             except Exception as e:  # noqa: BLE001 — 한 사용자의 오류가 다른 사용자 발송을 막지 않게
                 db.rollback()
-                out.append(f"user={user.id} 오류: {e}")
+                out.append(f"user={user.id} 오류: {type(e).__name__}")
     return out

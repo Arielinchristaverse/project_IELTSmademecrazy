@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..deps import current_user, owned, safe_back
-from ..models import Task, User
+from ..models import MAX_TASKS, TASK_NAME_MAX, TASK_SUBJECT_MAX, Task, User
 from ..templating import templates
 
 router = APIRouter()
@@ -40,14 +41,21 @@ def save_task(
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
+    name, subject = name.strip(), subject.strip()
+    dest = safe_back(back, "/tasks")
+    sep = "&" if "?" in dest else "?"
+    if not name or len(name) > TASK_NAME_MAX or len(subject) > TASK_SUBJECT_MAX:
+        return RedirectResponse(f"{dest}{sep}task_error=length", status_code=303)
     if task_id:
         t = owned(db, Task, task_id, user)
     else:
+        if (db.scalar(select(func.count(Task.id)).where(Task.user_id == user.id)) or 0) >= MAX_TASKS:
+            return RedirectResponse(f"{dest}{sep}task_error=count", status_code=303)
         t = Task(user_id=user.id)
         db.add(t)
-    t.name = name.strip()
-    t.subject = subject.strip()
-    t.duration_min = max(duration_min, 1)
+    t.name = name
+    t.subject = subject
+    t.duration_min = min(max(duration_min, 1), 24 * 60)
     t.weekly_count = min(max(weekly_count, 1), 7)
     db.commit()
     return RedirectResponse(safe_back(back, "/tasks"), status_code=303)

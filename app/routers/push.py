@@ -9,7 +9,9 @@ from .. import clock
 from ..config import settings
 from ..db import get_db
 from ..deps import current_user, owned
-from ..models import PushSubscription, User
+from ..models import MAX_PUSH_DEVICES, PushSubscription, User
+from ..security import MESSAGES, TEST_PUSH_PER_DAY, limit
+from ..services import counters
 from ..services.daily import send_test_push
 
 router = APIRouter(prefix="/push")
@@ -40,7 +42,7 @@ def public_key(_: User = Depends(current_user)):
     return {"publicKey": settings.vapid_public_key, "ready": settings.push_ready}
 
 
-@router.post("/subscribe")
+@router.post("/subscribe", dependencies=[Depends(limit("subscribe"))])
 def subscribe(
     body: SubscriptionIn, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)
 ):
@@ -58,10 +60,18 @@ def subscribe(
     sub.user_agent = request.headers.get("user-agent", "")[:512]
     sub.last_error = ""
     db.commit()
+    # 기기 수 상한: 넘으면 가장 오래 쓰지 않은(최근 성공이 가장 오래된) 기기부터 지운다
+    subs = db.scalars(
+        select(PushSubscription).where(PushSubscription.user_id == user.id)
+        .order_by(PushSubscription.last_success_at.is_(None).desc(), PushSubscription.last_success_at, PushSubscription.created_at)
+    ).all()
+    for old in [x for x in subs if x.id != sub.id][: max(len(subs) - MAX_PUSH_DEVICES, 0)]:
+        db.delete(old)
+    db.commit()
     return {"ok": True, "id": sub.id}
 
 
-@router.post("/status")
+@router.post("/status", dependencies=[Depends(limit("subscribe"))])
 def status(body: EndpointIn, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     """이 기기 구독을 서버가 알고 있는지 (내 계정 구독만 확인). 앱 상단 알림 배너용."""
     _require_json(request)
@@ -100,5 +110,9 @@ def delete_device(sub_id: int, db: Session = Depends(get_db), user: User = Depen
 def test_push(db: Session = Depends(get_db), user: User = Depends(current_user)):
     if not settings.push_ready:
         return JSONResponse({"ok": False, "message": "서버에 VAPID 키가 설정되지 않았습니다."}, status_code=503)
+    key = f"test_push:{user.id}"  # 하루 횟수 (서비스 전체 하루 집계 표, 30일 뒤 정리)
+    if counters.get(db, key) >= TEST_PUSH_PER_DAY:
+        return JSONResponse({"ok": False, "message": MESSAGES["test_push"]}, status_code=429)
+    counters.bump(db, key)
     r = send_test_push(db, user, clock.today())
     return {"ok": r.ok, "message": r.detail}

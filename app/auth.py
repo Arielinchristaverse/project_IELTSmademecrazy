@@ -6,7 +6,7 @@ iOS 는 Safari 와 홈 화면 앱의 쿠키 저장소가 분리되어 있고, �
 - 시작한 기기에는 handoff 쿠키만 남긴다. 콜백이 같은 저장소에서 끝나면 바로 로그인,
   아니면 "앱으로 돌아가세요" 화면을 보여주고, 앱이 다시 열릴 때 /auth/handoff 로 로그인을 넘겨받는다.
 """
-import logging
+import re
 import secrets
 from datetime import timedelta
 
@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from . import clock
 from .config import settings
+from .security import limit
 from .db import SessionLocal, get_db
 from .models import LoginRequest, User
 from .services import google_auth
@@ -49,7 +50,6 @@ HANDOFF_COOKIE = "login_handoff"
 LOGIN_TTL = timedelta(minutes=10)
 
 router = APIRouter()
-log = logging.getLogger("afterwork.auth")
 
 
 def _error_code(e: Exception) -> str:
@@ -58,6 +58,11 @@ def _error_code(e: Exception) -> str:
     if isinstance(code, str) and code.replace("_", "").isalnum():
         return code
     return type(e).__name__
+
+
+def _safe_code(value: str) -> str:
+    """구글이 돌려준 error 값: 영문·숫자·밑줄만, 40자까지 (로그에 다른 내용이 섞이지 않게)."""
+    return re.sub(r"[^A-Za-z0-9_]", "", value)[:40] or "-"
 
 
 def is_public(path: str) -> bool:
@@ -141,7 +146,7 @@ def login_page(request: Request, deleted: int = 0):
     return _login_page(request, info="계정과 모든 데이터를 삭제했습니다." if deleted else None)
 
 
-@router.get("/auth/google/start")
+@router.get("/auth/google/start", dependencies=[Depends(limit("login"))])
 async def google_start(db: Session = Depends(get_db)):
     if not google_auth.is_configured():
         return RedirectResponse("/login", status_code=303)
@@ -169,25 +174,24 @@ async def google_start(db: Session = Depends(get_db)):
     return resp
 
 
-@router.get("/auth/google/callback")
+@router.get("/auth/google/callback", dependencies=[Depends(limit("login"))])
 async def google_callback(
     request: Request, state: str = "", code: str = "", error: str = "", db: Session = Depends(get_db)
 ):
     lr = db.scalar(select(LoginRequest).where(LoginRequest.state == state)) if state else None
     if error or lr is None or lr.completed_at or clock.now() - lr.created_at > LOGIN_TTL:
         if error:
-            print(f"[auth] google returned error={error}", flush=True)
+            print(f"[auth] google returned error={_safe_code(error)}", flush=True)
         return _login_page(
             request,
-            "로그인이 취소되었거나 시간이 지났습니다. 다시 시도해 주세요." + (f" (오류 코드: {error})" if error else ""),
+            "로그인이 취소되었거나 시간이 지났습니다. 다시 시도해 주세요." + (f" (오류 코드: {_safe_code(error)})" if error else ""),
             400,
         )
     try:
         claims = await google_auth.verify(callback_url(), code, lr.code_verifier, lr.oidc_nonce)
     except Exception as e:  # noqa: BLE001
-        # 원인은 서버 로그에 남기고, 화면에는 짧은 오류 코드만 보여 준다
-        log.warning("google login verify failed: %s: %s", type(e).__name__, getattr(e, "description", "") or e)
-        print(f"[auth] google login verify failed: {type(e).__name__}: {getattr(e, 'description', '') or e}", flush=True)
+        # 로그에는 오류 종류(코드)만 남긴다 (설명 문장·토큰·이메일 없음). 화면에도 같은 코드만
+        print(f"[auth] google login verify failed: {type(e).__name__} code={_error_code(e)}", flush=True)
         return _login_page(
             request, f"구글 로그인 확인에 실패했습니다. 다시 시도해 주세요. (오류 코드: {_error_code(e)})", 400
         )
@@ -214,7 +218,7 @@ async def google_callback(
     return RedirectResponse("/consent", status_code=303)
 
 
-@router.get("/auth/handoff")
+@router.get("/auth/handoff", dependencies=[Depends(limit("handoff"))])
 def handoff(request: Request, redirect: int = 0, db: Session = Depends(get_db)):
     """홈 화면 앱이 다시 열렸을 때: 이 기기에서 시작한 로그인이 다른 곳에서 끝났으면 넘겨받는다."""
     code = request.cookies.get(HANDOFF_COOKIE)
@@ -239,7 +243,7 @@ def handoff(request: Request, redirect: int = 0, db: Session = Depends(get_db)):
     return resp
 
 
-@router.post("/auth/dev")
+@router.post("/auth/dev", dependencies=[Depends(limit("login"))])
 def dev_login(request: Request, email: str = Form(...), agree: str = Form(""), db: Session = Depends(get_db)):
     """개발·테스트 전용 로그인. DEV_LOGIN=true 일 때만 동작 (운영에서는 서버가 시작을 거부).
 

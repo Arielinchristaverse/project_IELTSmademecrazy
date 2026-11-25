@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import current_user
 from ..models import User
+from ..security import check_form_token
 from ..services.users import delete_user, normalize_email
 from ..templating import templates
 
@@ -21,10 +22,11 @@ def account_page(request: Request, error: int = 0, user: User = Depends(current_
 def account_delete(
     request: Request,
     confirm_email: str = Form(""),
+    csrf: str = Form(""),
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    if normalize_email(confirm_email) != user.email:
+    if not check_form_token(request, csrf) or normalize_email(confirm_email) != user.email:
         return RedirectResponse("/account?error=1", status_code=303)
     delete_user(db, user)
     request.session.clear()

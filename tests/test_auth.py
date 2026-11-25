@@ -10,7 +10,7 @@ from app.config import settings
 from app.main import app
 from app.models import Assignment, LoginRequest, Task, User
 from app.services import google_auth
-from tests.conftest import login
+from tests.conftest import csrf, login
 
 
 @pytest.fixture()
@@ -58,7 +58,7 @@ def test_google_login_same_browser_consent_creates_user_and_goes_to_onboarding(d
         r = c.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/consent"  # 새 사용자 → 동의 화면
         assert db.scalar(select(User).where(User.email == "new@example.com")) is None  # 동의 전에는 만들지 않음
-        r = c.post("/consent", data=AGREE, follow_redirects=False)
+        r = c.post("/consent", data={**AGREE, "csrf": csrf(c)}, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/today"
         assert c.get("/today", follow_redirects=False).headers["location"] == "/onboarding"
     u = db.scalar(select(User).where(User.email == "new@example.com"))
@@ -74,7 +74,7 @@ def test_login_finished_in_other_cookie_jar_is_handed_off_once(db, google):
         r = other_browser.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False)
         assert r.headers["location"] == "/consent"
         assert app_client.get("/auth/handoff").json() == {"ok": False}  # 동의 전에는 넘겨받을 것이 없음
-        r = other_browser.post("/consent", data=AGREE)
+        r = other_browser.post("/consent", data={**AGREE, "csrf": csrf(other_browser)})
         assert r.status_code == 200 and "로그인 완료" in r.text and "돌아가세요" in r.text
         assert other_browser.get("/", follow_redirects=False).headers["location"] == "/login"  # 거기선 로그인 안 됨
 
@@ -98,7 +98,7 @@ def test_handoff_expires(db, google, monkeypatch):
     with TestClient(app) as app_client, TestClient(app) as other:
         state = start(app_client)
         other.get(f"/auth/google/callback?state={state}&code=ok")
-        other.post("/consent", data=AGREE)
+        other.post("/consent", data={**AGREE, "csrf": csrf(other)})
         lr = db.scalar(select(LoginRequest).where(LoginRequest.state == state))
         lr.created_at = clock.now() - timedelta(minutes=11)
         db.commit()
@@ -125,7 +125,7 @@ def test_unverified_email_rejected_and_anyone_can_sign_up(db, google):
         google["claims"].update(email_verified=True, email="Stranger@Example.com", sub="g-9")  # 초대 목록 없음
         state = start(c)
         assert c.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False).headers["location"] == "/consent"
-        c.post("/consent", data=AGREE)
+        c.post("/consent", data={**AGREE, "csrf": csrf(c)})
     assert db.scalar(select(User).where(User.email == "stranger@example.com")) is not None
 
 
@@ -197,10 +197,10 @@ def test_account_delete(db, user):
     uid = user.id
     with TestClient(app) as c:
         login(c)
-        r = c.post("/account/delete", data={"confirm_email": "wrong@example.com"}, follow_redirects=False)
+        r = c.post("/account/delete", data={"confirm_email": "wrong@example.com", "csrf": csrf(c, "/account")}, follow_redirects=False)
         assert r.headers["location"] == "/account?error=1"
         assert db.get(User, uid) is not None
-        r = c.post("/account/delete", data={"confirm_email": "ME@example.com"}, follow_redirects=False)
+        r = c.post("/account/delete", data={"confirm_email": "ME@example.com", "csrf": csrf(c, "/account")}, follow_redirects=False)
         assert r.headers["location"] == "/login?deleted=1"
         assert c.get("/", follow_redirects=False).headers["location"] == "/login"
     db.expire_all()

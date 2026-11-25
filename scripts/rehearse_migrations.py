@@ -16,6 +16,7 @@
 """
 import hashlib
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -111,12 +112,16 @@ def main(src: str, keep: bool = False) -> int:
 
     from fastapi.testclient import TestClient
 
+    from app import security
     from app.main import app
+
+    for k, (n, period, basis) in list(security.LIMITS.items()):  # 리허설에서는 여러 사용자를 연달아 확인하므로 횟수 제한을 푼다
+        security.LIMITS[k] = (10**9, period, basis)
 
     con = sqlite3.connect(db_path)
     users = con.execute("select id, email from users order by id").fetchall()
     con.close()
-    with TestClient(app) as c:
+    with TestClient(app, headers={"origin": "http://testserver"}) as c:
         for uid, email in users:
             c.post("/logout")
             c.post("/auth/dev", data={"email": email})
@@ -124,7 +129,8 @@ def main(src: str, keep: bool = False) -> int:
             consent = first.status_code == 303 and first.headers.get("location") == "/consent"
             print(f"user{uid}: 첫 접속 → {'동의 화면' if consent else first.status_code}")
             if consent:  # 사본에서 동의한 뒤 실제 화면을 확인
-                c.post("/consent", data={"agree_terms": "on", "agree_privacy": "on", "agree_age": "on"})
+                token = re.search(r'name="csrf" value="([^"]+)"', c.get("/consent").text).group(1)
+                c.post("/consent", data={"agree_terms": "on", "agree_privacy": "on", "agree_age": "on", "csrf": token})
             codes = {p: c.get(p, follow_redirects=False).status_code for p in PAGES}
             bad = {p: s for p, s in codes.items() if s != 200}
             problems += len(bad)

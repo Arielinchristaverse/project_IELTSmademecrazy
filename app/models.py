@@ -26,6 +26,13 @@ from .db import Base
 
 # 근무 유형은 사용자가 직접 만든다. 새 사용자에게는 seed.PRESET_SHIFTS 4개가 채워진다.
 MAX_ACTIVE_SHIFTS = 8
+# 입력 길이·개수 제한 (남용 방지)
+TASK_NAME_MAX = 50
+TASK_SUBJECT_MAX = 20
+MAX_TASKS = 30  # 사용자당 과제 (중지한 과제 포함)
+SENTENCE_MAX = 300  # 영어 문장·뜻 각각
+MAX_SENTENCES = 200
+MAX_PUSH_DEVICES = 10  # 넘으면 가장 오래된 기기를 지운다
 SHIFT_NAME_MAX = 20
 # 유형 색 팔레트 (라이트·다크 모두에서 보이는 중간 톤, 점·선에만 쓰고 글자색으로는 쓰지 않음)
 SHIFT_COLORS = {

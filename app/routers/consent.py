@@ -11,6 +11,7 @@ from .. import clock
 from ..auth import LOGIN_TTL, SIGNUP_KEY, _login_page, finish_login, full_page, pending_signup
 from ..db import get_db
 from ..models import LoginRequest, User
+from ..security import check_form_token, limit
 from ..services import legal
 from ..services.users import CapacityFull, create_user, needs_consent, record_consent
 from ..templating import templates
@@ -45,14 +46,16 @@ def consent_page(request: Request, db: Session = Depends(get_db)):
     return _login_page(request, "가입 확인 시간이 지났어요. 다시 로그인해 주세요.", 400)
 
 
-@router.post("/consent")
+@router.post("/consent", dependencies=[Depends(limit("login"))])
 async def consent_submit(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    agreed = all(form.get(k) == "on" for k in REQUIRED)
     user = _current(request, db)
     if user is not None:
-        if not agreed:
-            return _page(request, "update" if user.agreed_at else "existing", user, "필수 항목에 모두 동의해 주세요.", 400)
+        mode = "update" if user.agreed_at else "existing"
+        if not check_form_token(request, form.get("csrf")):
+            return _page(request, mode, user, "화면이 오래되었어요. 다시 체크하고 제출해 주세요.", 400)
+        if not all(form.get(k) == "on" for k in REQUIRED):
+            return _page(request, mode, user, "필수 항목에 모두 동의해 주세요.", 400)
         record_consent(user)
         db.commit()
         return RedirectResponse("/today", status_code=303)
@@ -60,7 +63,9 @@ async def consent_submit(request: Request, db: Session = Depends(get_db)):
     p = pending_signup(request)
     if p is None:
         return _login_page(request, "가입 확인 시간이 지났어요. 다시 로그인해 주세요.", 400)
-    if not agreed:
+    if not check_form_token(request, form.get("csrf")):
+        return _page(request, "signup", None, "화면이 오래되었어요. 다시 체크하고 제출해 주세요.", 400)
+    if not all(form.get(k) == "on" for k in REQUIRED):
         return _page(request, "signup", None, "필수 항목에 모두 동의해 주세요.", 400)
     try:
         uid = create_user(p["email"], p.get("name", ""), p.get("sub"), consent=True)

@@ -17,6 +17,7 @@ from ..services.allocator import (
     pending_items,
     week_start_of,
 )
+from ..security import limit
 from ..services import extras as extra_svc
 from ..services.progress import set_status, week_progress
 from ..templating import templates
@@ -92,7 +93,7 @@ def generate(start: str = Form(...), db: Session = Depends(get_db), user: User =
     return RedirectResponse(f"/?start={ws}&msg=배정을 생성했습니다.", status_code=303)
 
 
-@router.post("/extras/{task_id}/{action}")
+@router.post("/extras/{task_id}/{action}", dependencies=[Depends(limit("record"))])
 def extra_action(
     task_id: int,
     action: str,
@@ -122,7 +123,7 @@ def extra_action(
     return RedirectResponse(url, status_code=303)
 
 
-@router.post("/assignments/{aid}/status")
+@router.post("/assignments/{aid}/status", dependencies=[Depends(limit("record"))])
 def change_status(
     aid: int,
     status: str = Form(...),

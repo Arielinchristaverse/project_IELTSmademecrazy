@@ -2,13 +2,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from scripts import migrate
 
-from . import auth, scheduler
+from . import auth, scheduler, security
 from .config import env_presence_line, settings
 from .db import SessionLocal
 from .deps import NeedsConsent, NeedsOnboarding, NotLoggedIn
@@ -29,6 +30,7 @@ from .routers import (
     weeks,
 )
 from .services.users import sync_admin_flags
+from .templating import templates
 
 
 @asynccontextmanager
@@ -47,7 +49,34 @@ async def lifespan(app: FastAPI):
     scheduler.stop()
 
 
-app = FastAPI(title="교대근무 공부 스케줄러", lifespan=lifespan)
+security.install_log_filters()
+# 운영에서는 자동 API 문서(/docs, /redoc, /openapi.json)를 끈다
+_docs = {} if not settings.is_production else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+app = FastAPI(title="afterwork", lifespan=lifespan, **_docs)
+
+
+async def protect(request: Request, call_next):
+    """HTTPS 강제(운영) · 요청 위조 방어(상태를 바꾸는 요청은 같은 사이트에서만) · 보안 헤더."""
+    if settings.is_production and request.headers.get("x-forwarded-proto", "https") == "http":
+        return RedirectResponse(str(request.url.replace(scheme="https")), status_code=308)
+    if request.method in security.UNSAFE and not security.same_origin(request):
+        resp = (
+            JSONResponse({"ok": False, "message": "잘못된 요청이에요. 앱 화면에서 다시 시도해 주세요."}, status_code=403)
+            if request.url.path.startswith("/push/")
+            else HTMLResponse("잘못된 요청이에요. 앱 화면을 새로 고친 뒤 다시 시도해 주세요.", status_code=403)
+        )
+    else:
+        resp = await call_next(request)
+    security.security_headers(request, resp.headers)
+    return resp
+
+
+@app.exception_handler(security.RateLimited)
+async def rate_limited(request: Request, exc: security.RateLimited):
+    if request.url.path.startswith(("/push/", "/auth/handoff")):
+        return JSONResponse({"ok": False, "message": exc.detail}, status_code=429, headers={"Retry-After": "60"})
+    return templates.TemplateResponse(request, "limited.html", {"message": exc.detail}, status_code=429,
+                                      headers={"Retry-After": "60"})
 
 
 @app.middleware("http")
@@ -99,6 +128,9 @@ app.add_middleware(
     same_site="lax",
     https_only=settings.base_url.startswith("https://"),
 )
+
+# 가장 바깥(가장 마지막에 추가): 로그인 리디렉션·정적 파일을 포함한 모든 응답에 보안 헤더, 모든 요청에 위조 검사
+app.add_middleware(BaseHTTPMiddleware, dispatch=protect)
 
 app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
 app.include_router(auth.router)

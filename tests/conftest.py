@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 
 _tmp = tempfile.mkdtemp()
@@ -9,6 +10,7 @@ os.environ["ADMIN_EMAIL"] = "me@example.com"
 os.environ.pop("RENDER", None)
 
 import pytest  # noqa: E402
+from starlette.testclient import TestClient as _TestClient  # noqa: E402
 from pywebpush import WebPushException  # noqa: E402
 
 from app.config import settings  # noqa: E402
@@ -18,6 +20,28 @@ from app.services import push  # noqa: E402
 from app.services.users import get_or_create_user, record_consent  # noqa: E402
 from app.clock import now as _now  # noqa: E402
 from scripts.gen_vapid import generate  # noqa: E402
+
+
+# 테스트 클라이언트는 브라우저처럼 같은 사이트 Origin 을 보낸다 (요청 위조 방어 미들웨어 통과).
+# 위조 방어 자체를 시험할 때는 client.headers 에서 origin 을 지우거나 바꾼다.
+_orig_init = _TestClient.__init__
+
+
+def _init_with_origin(self, *args, **kwargs):
+    _orig_init(self, *args, **kwargs)
+    self.headers.setdefault("origin", "http://testserver")
+
+
+_TestClient.__init__ = _init_with_origin
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    from app import security
+
+    security.window.clear()
+    yield
+    security.window.clear()
 
 
 @pytest.fixture()
@@ -87,3 +111,11 @@ def add_sub(db, user, endpoint):
     return s
 
 
+
+
+def csrf(client, path="/consent") -> str:
+    """화면의 폼 토큰(계정 삭제·동의 제출에 필요)을 읽는다."""
+    html = client.get(path).text
+    m = re.search(r'name="csrf" value="([^"]+)"', html)
+    assert m, f"{path} 에 폼 토큰이 없음"
+    return m.group(1)

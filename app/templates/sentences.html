@@ -3,6 +3,8 @@
 <h1>영어 문장</h1>
 <p class="sub">총 {{ count }}개 · 다음 날 오늘 화면에는 {{ next_no }}번 문장이 나와요. 한 줄에 한 문장씩, 뜻은 <code>|</code> 뒤에 적으세요.</p>
 {% if saved %}<div class="notice">저장했습니다.</div>{% endif %}
+{% if error == 'count' %}<p class="warn" role="alert">영어 문장은 {{ max_sentences }}개까지 저장할 수 있어요. 저장하지 않았어요.</p>
+{% elif error == 'length' %}<p class="warn" role="alert">문장과 뜻은 각각 {{ sentence_max }}자까지 쓸 수 있어요. 저장하지 않았어요.</p>{% endif %}
 <form method="post" action="/sentences">
   <textarea name="body" rows="24" style="width:100%">{{ text }}</textarea>
   <button style="margin-top:12px">저장</button>

@@ -26,3 +26,12 @@ def asset(path: str) -> str:
 
 
 templates.env.globals["asset"] = asset
+
+
+def _csrf(request) -> str:
+    from .security import csrf_token
+
+    return csrf_token(request)
+
+
+templates.env.globals["csrf_token"] = _csrf

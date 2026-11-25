@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block title %}잠시 뒤에 · afterwork{% endblock %}
+{% block content %}
+<div class="solo">
+  <h1>잠시 뒤에 다시 시도해 주세요</h1>
+  <p class="sub" role="alert">{{ message }}</p>
+  <p><a class="btn ghost wide" href="/today">오늘 화면으로</a></p>
+</div>
+{% endblock %}
