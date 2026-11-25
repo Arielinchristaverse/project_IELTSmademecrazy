@@ -55,16 +55,12 @@ class Settings:
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./data/app.db")
     timezone: ZoneInfo = ZoneInfo(os.getenv("TIMEZONE", "Asia/Seoul"))
     scheduler_enabled: bool = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
-    # 가입 정원 (관리자 제외). 2단계는 관리자 화면 표시만, 3단계에서 가입 시 적용
+    # 가입 정원 (관리자 제외). 새 사용자를 만드는 순간에만 확인, 기존 사용자 로그인은 항상 허용
     max_users: int = int(_secret_env("MAX_USERS") or 50)
     admin_email: str = _secret_env("ADMIN_EMAIL").lower()
     # 구글 로그인 (Google Cloud Console 의 OAuth 클라이언트)
     google_client_id: str = _secret_env("GOOGLE_CLIENT_ID")
     google_client_secret: str = _secret_env("GOOGLE_CLIENT_SECRET")
-    # 비어 있으면 누구나 가입, 값이 있으면 목록(쉼표 구분)과 ADMIN_EMAIL 만 가입
-    allowed_emails: frozenset[str] = frozenset(
-        e.strip().lower() for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()
-    )
     # 웹 푸시 VAPID 키 (python -m scripts.gen_vapid 로 생성)
     vapid_public_key: str = _secret_env("VAPID_PUBLIC_KEY")
     vapid_private_key: str = _secret_env("VAPID_PRIVATE_KEY")

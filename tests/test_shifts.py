@@ -189,7 +189,6 @@ def test_custom_shift_drives_capacity_and_notify_time_on_its_date(db, user):
     mine = svc.create_shift(db, user.id, svc.parse_form(form(label="교육", study_minutes="45", send_time="16:00")))
     db.add(CalendarDay(user_id=user.id, date=MON, shift_code=mine.code))
     db.add(Task(user_id=user.id, name="단어", subject="V", duration_min=30, weekly_count=3))
-    user.notify_channel = "email"
     db.commit()
     generate_week(db, user.id, MON, MON)
     mon = db.scalars(select(Assignment).where(Assignment.user_id == user.id, Assignment.date == MON)).all()

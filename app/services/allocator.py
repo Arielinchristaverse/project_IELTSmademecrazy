@@ -18,7 +18,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from .. import clock
-from ..models import ActionToken, Assignment, CalendarDay, Task, Week, WeekShortfall
+from ..models import Assignment, CalendarDay, Task, Week, WeekShortfall
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +222,7 @@ def generate_week(db: Session, uid: int, week_start: date, today: date) -> Week:
     week_end = week_start + timedelta(days=6)
     from_date = max(week_start, today)
 
-    # 오늘 이후의 예정 배정 삭제 (토큰은 FK CASCADE 와 별개로 명시적으로 지운다)
+    # 오늘 이후의 예정 배정 삭제
     stale = db.scalars(
         select(Assignment).where(
             Assignment.user_id == uid,
@@ -231,10 +231,7 @@ def generate_week(db: Session, uid: int, week_start: date, today: date) -> Week:
             Assignment.status == "scheduled",
         )
     ).all()
-    stale_ids = [a.id for a in stale]
-    if stale_ids:
-        for tok in db.scalars(select(ActionToken).where(ActionToken.assignment_id.in_(stale_ids))):
-            db.delete(tok)
+    if stale:
         for a in stale:
             db.delete(a)
         db.flush()

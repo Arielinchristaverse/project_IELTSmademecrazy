@@ -8,7 +8,8 @@
    - 기존 테이블·열 중 바뀐 것 (예상된 변경은 EXPECTED 로 표시)
    - 외래키 검사, 무결성 검사
    를 출력한다.
-4. 최신 구조로 앱을 띄워 사용자별 주요 화면이 열리는지 확인한다 (사용자는 번호로만 표시).
+4. 최신 구조로 앱을 띄워 사용자별로 첫 접속이 동의 화면인지, 동의 후 주요 화면이 (리디렉션 없이) 열리는지 확인한다
+   (사용자는 번호로만 표시. 동의는 사본에만 기록된다).
 5. 임시 폴더를 지운다 (--keep 이면 남김).
 
 출력에는 이메일·이름 등 개인정보와 비밀값을 넣지 않는다.
@@ -23,9 +24,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# 리비전별로 '바뀌는 것이 정상'인 기존 열 (table.column)
+# 리비전별로 '바뀌거나 없어지는 것이 정상'인 기존 열(table.column)과 표(table)
 EXPECTED = {
     "0007": {"users.notify_channel", "users.notify_email"},
+    "0008": {"users.notify_channel", "users.notify_email", "action_tokens"},
 }
 PAGES = ["/today", "/", "/calendar", "/settings", "/tasks", "/sentences", "/account"]
 
@@ -58,13 +60,15 @@ def compare(before: dict, after: dict, rev: str) -> list[str]:
             continue  # 버전 번호는 단계마다 바뀌는 것이 정상
         a = after.get(t)
         if a is None:
-            lines.append(f"  - 테이블 삭제: {t}")
+            ok = t in EXPECTED.get(rev, set())
+            lines.append(f"  {'·' if ok else '-'} 테이블 삭제{'(예상됨)' if ok else ''}: {t} ({b['rows']}행)")
             continue
         if a["rows"] != b["rows"]:
             lines.append(f"  ! 행 수 변화: {t} {b['rows']} → {a['rows']}")
         for c, h in b["cols"].items():
             if c not in a["cols"]:
-                lines.append(f"  - 열 삭제: {t}.{c}")
+                ok = f"{t}.{c}" in EXPECTED.get(rev, set())
+                lines.append(f"  {'·' if ok else '-'} 열 삭제{'(예상됨)' if ok else ''}: {t}.{c}")
             elif a["cols"][c] != h:
                 tag = "예상됨" if f"{t}.{c}" in EXPECTED.get(rev, set()) else "확인 필요"
                 lines.append(f"  {'·' if tag == '예상됨' else '!'} 내용 변화({tag}): {t}.{c}")
@@ -116,7 +120,12 @@ def main(src: str, keep: bool = False) -> int:
         for uid, email in users:
             c.post("/logout")
             c.post("/auth/dev", data={"email": email})
-            codes = {p: c.get(p).status_code for p in PAGES}
+            first = c.get("/today", follow_redirects=False)
+            consent = first.status_code == 303 and first.headers.get("location") == "/consent"
+            print(f"user{uid}: 첫 접속 → {'동의 화면' if consent else first.status_code}")
+            if consent:  # 사본에서 동의한 뒤 실제 화면을 확인
+                c.post("/consent", data={"agree_terms": "on", "agree_privacy": "on", "agree_age": "on"})
+            codes = {p: c.get(p, follow_redirects=False).status_code for p in PAGES}
             bad = {p: s for p, s in codes.items() if s != 200}
             problems += len(bad)
             print(f"user{uid}: 화면 {len(PAGES) - len(bad)}/{len(PAGES)} 정상" + (f" 문제 {bad}" if bad else ""))

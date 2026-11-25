@@ -1,4 +1,4 @@
-"""구글 로그인(모킹) · iOS 쿠키 분리 대비 넘겨받기 · 가입 제한 · 온보딩 · 계정 삭제."""
+"""구글 로그인(모킹) · iOS 쿠키 분리 대비 넘겨받기 · 가입 동의 · 온보딩 · 계정 삭제."""
 from datetime import timedelta
 
 import pytest
@@ -49,23 +49,32 @@ def start(c):
     return r.headers["location"].split("state=")[1]
 
 
-def test_google_login_same_browser_creates_user_and_goes_to_onboarding(db, google):
+AGREE = {"agree_terms": "on", "agree_privacy": "on", "agree_age": "on"}
+
+
+def test_google_login_same_browser_consent_creates_user_and_goes_to_onboarding(db, google):
     with TestClient(app) as c:
         state = start(c)
         r = c.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/consent"  # 새 사용자 → 동의 화면
+        assert db.scalar(select(User).where(User.email == "new@example.com")) is None  # 동의 전에는 만들지 않음
+        r = c.post("/consent", data=AGREE, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == "/today"
         assert c.get("/today", follow_redirects=False).headers["location"] == "/onboarding"
     u = db.scalar(select(User).where(User.email == "new@example.com"))
-    assert u.google_sub == "g-1" and u.name == "새 사용자" and not u.is_admin
+    assert u.google_sub == "g-1" and u.name == "새 사용자" and not u.is_admin and u.agreed_at is not None
     # PKCE·nonce 가 DB에 저장된 값으로 검증에 쓰였는지
     assert google["seen"]["ok"] == (f"{settings.base_url}/auth/google/callback", "v" * 48, "nonce1")
 
 
 def test_login_finished_in_other_cookie_jar_is_handed_off_once(db, google):
-    """iOS: 홈 화면 앱에서 시작 → 다른 저장소(Safari 등)에서 콜백 → 앱으로 돌아와 넘겨받기."""
+    """iOS: 홈 화면 앱에서 시작 → 다른 저장소(Safari 등)에서 콜백 → 그 창에서 동의 → 앱으로 돌아와 넘겨받기."""
     with TestClient(app) as app_client, TestClient(app) as other_browser:
         state = start(app_client)
-        r = other_browser.get(f"/auth/google/callback?state={state}&code=ok")
+        r = other_browser.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False)
+        assert r.headers["location"] == "/consent"
+        assert app_client.get("/auth/handoff").json() == {"ok": False}  # 동의 전에는 넘겨받을 것이 없음
+        r = other_browser.post("/consent", data=AGREE)
         assert r.status_code == 200 and "로그인 완료" in r.text and "돌아가세요" in r.text
         assert other_browser.get("/", follow_redirects=False).headers["location"] == "/login"  # 거기선 로그인 안 됨
 
@@ -75,10 +84,21 @@ def test_login_finished_in_other_cookie_jar_is_handed_off_once(db, google):
         assert app_client.get("/auth/handoff").json() == {"ok": False}  # 1회용
 
 
+def test_existing_user_in_other_cookie_jar_still_handed_off(db, user, google):
+    google["claims"].update(email="me@example.com", sub="g-me")
+    with TestClient(app) as app_client, TestClient(app) as other_browser:
+        state = start(app_client)
+        r = other_browser.get(f"/auth/google/callback?state={state}&code=ok")
+        assert "로그인 완료" in r.text  # 기존 사용자: 동의 화면 없이(현재 버전 동의함) 바로 넘겨받기
+        assert app_client.get("/auth/handoff").json() == {"ok": True}
+        assert app_client.get("/", follow_redirects=False).status_code == 200
+
+
 def test_handoff_expires(db, google, monkeypatch):
     with TestClient(app) as app_client, TestClient(app) as other:
         state = start(app_client)
         other.get(f"/auth/google/callback?state={state}&code=ok")
+        other.post("/consent", data=AGREE)
         lr = db.scalar(select(LoginRequest).where(LoginRequest.state == state))
         lr.created_at = clock.now() - timedelta(minutes=11)
         db.commit()
@@ -96,22 +116,17 @@ def test_callback_rejects_unknown_state_reuse_and_bad_token(db, google):
         assert c.get(f"/auth/google/callback?state={state}&code=ok").status_code == 400  # 재사용 불가
 
 
-def test_unverified_email_and_allowlist(db, google, monkeypatch):
+def test_unverified_email_rejected_and_anyone_can_sign_up(db, google):
     with TestClient(app) as c:
         google["claims"]["email_verified"] = False
         state = start(c)
         assert c.get(f"/auth/google/callback?state={state}&code=ok").status_code == 403
 
-        google["claims"]["email_verified"] = True
-        monkeypatch.setattr(type(settings), "allowed_emails", frozenset({"friend@example.com"}))
+        google["claims"].update(email_verified=True, email="Stranger@Example.com", sub="g-9")  # 초대 목록 없음
         state = start(c)
-        r = c.get(f"/auth/google/callback?state={state}&code=ok")
-        assert r.status_code == 403 and "초대" in r.text
-        assert db.scalar(select(User).where(User.email == "new@example.com")) is None
-
-        google["claims"].update(email="Friend@Example.com", sub="g-2")
-        state = start(c)
-        assert c.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False).status_code == 303
+        assert c.get(f"/auth/google/callback?state={state}&code=ok", follow_redirects=False).headers["location"] == "/consent"
+        c.post("/consent", data=AGREE)
+    assert db.scalar(select(User).where(User.email == "stranger@example.com")) is not None
 
 
 def test_admin_first_google_login_links_existing_account(db, user, google):

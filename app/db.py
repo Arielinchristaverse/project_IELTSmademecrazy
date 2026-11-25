@@ -19,13 +19,16 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-def make_engine(url: str):
+def make_engine(url: str, begin_immediate: bool = False):
+    """begin_immediate=True: 트랜잭션을 BEGIN IMMEDIATE 로 시작하는 엔진 (SQLite 에서 쓰기 잠금을 먼저 잡음).
+    가입처럼 '세고 → 만들기'를 다른 요청과 겹치지 않게 처리해야 하는 곳에서만 쓴다."""
     is_sqlite = url.startswith("sqlite")
     if url.startswith("sqlite:///"):
         folder = os.path.dirname(url.removeprefix("sqlite:///"))
         if folder:
             os.makedirs(folder, exist_ok=True)
-    eng = create_engine(url, connect_args={"check_same_thread": False} if is_sqlite else {})
+    # timeout: 다른 연결이 쓰기 잠금을 잡고 있으면 최대 15초 기다린다
+    eng = create_engine(url, connect_args={"check_same_thread": False, "timeout": 15} if is_sqlite else {})
     if is_sqlite:
         # SQLite는 기본적으로 외래키(ON DELETE CASCADE)를 무시하므로 연결마다 켠다
         @event.listens_for(eng, "connect")
@@ -33,12 +36,22 @@ def make_engine(url: str):
             cur = dbapi_conn.cursor()
             cur.execute("PRAGMA foreign_keys=ON")
             cur.close()
+            if begin_immediate:
+                dbapi_conn.isolation_level = None  # BEGIN 을 pysqlite 대신 아래에서 직접 보낸다
+
+        if begin_immediate:
+            @event.listens_for(eng, "begin")
+            def _begin_immediate(conn):
+                conn.exec_driver_sql("BEGIN IMMEDIATE")
 
     return eng
 
 
 engine = make_engine(settings.database_url)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+# 가입(정원 확인 + 사용자 생성) 전용: 동시에 들어와도 순서대로 처리된다
+signup_engine = make_engine(settings.database_url, begin_immediate=True)
+SignupSession = sessionmaker(bind=signup_engine, expire_on_commit=False)
 
 
 def get_db():

@@ -22,7 +22,6 @@ def setup_days(db, user, send_at: time):
     for i in range(7):
         db.add(CalendarDay(user_id=user.id, date=MON + timedelta(days=i), shift_code="DAY"))
     db.add(Task(user_id=user.id, name="단어", subject="V", duration_min=30, weekly_count=5))
-    user.notify_channel = "push"
     user.onboarding_step = 3
     db.commit()
 
@@ -152,7 +151,7 @@ def test_each_user_gets_push_at_own_time(db, user, pusher):
 
 def test_push_only_and_sentence_advances_once_per_day(db, user, pusher):
     setup_days(db, user, time(6, 0))
-    user.notify_channel = "both"  # 예전 값이 남아 있어도 푸시로만 보낸다
+
     db.commit()
     add_sub(db, user, "https://web.push.apple.com/me")
     out = notify_due(db, user, datetime.combine(MON, time(6, 0)))

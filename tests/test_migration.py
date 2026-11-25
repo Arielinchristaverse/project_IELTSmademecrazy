@@ -58,17 +58,19 @@ def test_old_db_is_migrated_to_admin_with_backup(tmp_path, monkeypatch):
     old.close()
 
     con = sqlite3.connect(path)
-    uid, email, step, admin, cursor, notify, channel = con.execute(
-        "select id, email, onboarding_step, is_admin, sentence_cursor, notify_email, notify_channel from users"
+    uid, email, step, admin, cursor, terms = con.execute(
+        "select id, email, onboarding_step, is_admin, sentence_cursor, terms_version from users"
     ).fetchone()
-    # 0007(푸시 전용): 알림 수단은 push, 쓰지 않는 메일 받는 주소는 비움
-    assert (email, step, admin, cursor, notify, channel) == ("me@example.com", 3, 1, 7, "", "push")
+    # 0008: 메일 전용 열은 없어지고, 동의 기록은 비어 있음(다음 접속 때 동의 화면)
+    assert (email, step, admin, cursor, terms) == ("me@example.com", 3, 1, 7, None)
+    cols = {r[1] for r in con.execute("pragma table_info(users)")}
+    assert not cols & {"notify_email", "notify_channel"}
     for table in ["shift_types", "calendar_days", "tasks", "weeks", "assignments", "sentences", "notify_logs"]:
         owners = {r[0] for r in con.execute(f"select user_id from {table}")}
         assert owners == {uid}, table
-    # id와 보충 연결, 메일 토큰이 유지됨
+    # id와 보충 연결이 유지됨
     assert con.execute("select makeup_of_id from assignments where id = 11").fetchone()[0] == 10
-    assert con.execute("select assignment_id from action_tokens where token='tok'").fetchone()[0] == 11
+    assert not con.execute("select name from sqlite_master where name='action_tokens'").fetchall()  # 0008 에서 삭제
     assert con.execute("select channel from notify_logs").fetchone()[0] == "email"
     assert {r[0] for r in con.execute("select name from sqlite_master where type='table'")} >= {
         "users",

@@ -11,11 +11,12 @@ from scripts import migrate
 from . import auth, scheduler
 from .config import env_presence_line, settings
 from .db import SessionLocal
-from .deps import NeedsOnboarding, NotLoggedIn
+from .deps import NeedsConsent, NeedsOnboarding, NotLoggedIn
 from .routers import (
     account,
     admin,
     calendar,
+    consent,
     install,
     onboarding,
     pwa,
@@ -80,6 +81,11 @@ async def not_logged_in(request: Request, exc: NotLoggedIn):
     return RedirectResponse("/login", status_code=303)
 
 
+@app.exception_handler(NeedsConsent)
+async def needs_consent(request: Request, exc: NeedsConsent):
+    return RedirectResponse("/consent", status_code=303)
+
+
 @app.exception_handler(NeedsOnboarding)
 async def needs_onboarding(request: Request, exc: NeedsOnboarding):
     return RedirectResponse("/onboarding", status_code=303)
@@ -105,6 +111,7 @@ app.include_router(tasks.router)
 app.include_router(sentences.router)
 app.include_router(onboarding.router)
 app.include_router(account.router)
+app.include_router(consent.router)
 app.include_router(admin.router)
 app.include_router(pwa.router)
 app.include_router(install.router)

@@ -31,7 +31,6 @@ def setup(db, user, send=time(6, 0), remind=time(12, 0), channel="push", endpoin
     db.add(CalendarDay(user_id=user.id, date=MON, shift_code="DAY"))
     for i in range(tasks):
         db.add(Task(user_id=user.id, name=f"과제{i}", subject=f"s{i}", duration_min=15, weekly_count=7))
-    user.notify_channel = channel
     user.onboarding_step = 3
     db.commit()
     if channel in ("push", "both"):

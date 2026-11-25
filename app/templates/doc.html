@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block header %}{% endblock %}
+{% block title %}{{ doc.title }} · afterwork{% endblock %}
+{% block content %}
+<article class="doc">
+<h1>{{ doc.title }}</h1>
+<p class="muted">시행일: {{ doc.effective_date or '—' }} · 버전 {{ doc.version }}</p>
+{#- 본문: content/*.md 를 원문 HTML 없이 렌더링한 결과라 그대로 넣는다 -#}
+{{ doc.html | safe }}
+</article>
+<p class="doc-links"><a href="/terms">이용약관</a> · <a href="/privacy">개인정보처리방침</a> · <a href="/">돌아가기</a></p>
+{% endblock %}

@@ -25,11 +25,9 @@ services:
       - key: SECRET_KEY        # 세션 서명 키: Render 가 임의 값 자동 생성
         generateValue: true
       # ---- 직접 입력 (비밀값/개인 설정)
-      - key: MAX_USERS         # 가입 정원 (관리자 제외). 3단계부터 가입 시 적용
+      - key: MAX_USERS         # 가입 정원 (관리자 제외). 새 가입에만 적용, 기존 사용자는 항상 로그인
         value: "50"
       - key: ADMIN_EMAIL       # 관리자(관리자 화면·백업 다운로드) 구글 이메일
-        sync: false
-      - key: ALLOWED_EMAILS    # 가입 허용 이메일(쉼표 구분). 비워 두면 누구나 가입
         sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false

@@ -18,9 +18,19 @@ from sqlalchemy.orm import Session
 from . import clock
 from .config import settings
 from .db import SessionLocal, get_db
-from .models import LoginRequest
+from .models import LoginRequest, User
 from .services import google_auth
-from .services.users import get_or_create_user, normalize_email
+from .services import legal
+from .services.users import (
+    CapacityFull,
+    create_user,
+    find_user,
+    is_admin_email,
+    members_count,
+    normalize_email,
+    record_consent,
+    touch_login,
+)
 from .templating import templates
 
 PUBLIC_PREFIXES = (
@@ -29,6 +39,8 @@ PUBLIC_PREFIXES = (
     "/auth/",
     "/healthz",
     "/privacy",
+    "/terms",
+    "/consent",
     "/install",
     "/sw.js",
     "/manifest.webmanifest",
@@ -56,11 +68,51 @@ def callback_url() -> str:
     return f"{settings.base_url}/auth/google/callback"
 
 
-def email_allowed(email: str) -> bool:
-    email = normalize_email(email)
-    if not settings.allowed_emails:
-        return True
-    return email in settings.allowed_emails or (settings.admin_email and email == settings.admin_email)
+SIGNUP_KEY = "signup"  # 가입 대기 정보(서명된 세션 쿠키 안, 10분)
+
+
+def full_page(request: Request):
+    """정원이 가득 참: 계정을 만들지 않고 안내만. 숫자·대기 신청 없음."""
+    return templates.TemplateResponse(request, "full.html", {"contact": legal.CONTACT_EMAIL}, status_code=403)
+
+
+def start_signup(request: Request, email: str, name: str, sub: str | None, lr_id: int | None, same_store: bool) -> None:
+    """새 사용자: DB 에 만들지 않고 서명된 세션에만 10분 동안 둔다. 동의 제출 때 만든다."""
+    request.session.pop("uid", None)
+    request.session[SIGNUP_KEY] = {
+        "email": email, "name": name, "sub": sub, "lr": lr_id, "same": same_store,
+        "exp": (clock.now() + LOGIN_TTL).timestamp(),
+    }
+
+
+def pending_signup(request: Request) -> dict | None:
+    p = request.session.get(SIGNUP_KEY)
+    if not p:
+        return None
+    if clock.now().timestamp() > p.get("exp", 0):
+        request.session.pop(SIGNUP_KEY, None)
+        return None
+    return p
+
+
+def finish_login(request: Request, db: Session, lr: LoginRequest | None, uid: int, same_store: bool):
+    """로그인 마무리. 시작한 곳과 같은 쿠키 저장소면 바로 로그인, 아니면 '앱으로 돌아가세요' + 넘겨받기."""
+    if lr is not None:
+        lr.user_id = uid
+        lr.completed_at = clock.now()
+    if lr is None or same_store:
+        if lr is not None:
+            lr.consumed_at = clock.now()
+        db.commit()
+        _login(request, uid)
+        resp = RedirectResponse("/today", status_code=303)
+        resp.delete_cookie(HANDOFF_COOKIE)
+        return resp
+    # 다른 저장소(예: iOS 홈 화면 앱에서 시작했는데 Safari 에서 끝남) → 앱으로 돌아가 넘겨받기
+    db.commit()
+    request.session.clear()
+    user = db.get(User, uid)
+    return templates.TemplateResponse(request, "login_return.html", {"email": user.email})
 
 
 def _login(request: Request, uid: int) -> None:
@@ -143,25 +195,23 @@ async def google_callback(
     email = claims.get("email", "")
     if not email or not claims.get("email_verified"):
         return _login_page(request, "인증된 이메일이 있는 구글 계정만 사용할 수 있습니다.", 403)
-    if not email_allowed(email):
-        return _login_page(request, "아직 초대되지 않은 계정입니다. 관리자에게 문의해 주세요.", 403)
+    name, sub = claims.get("name", ""), claims.get("sub")
+    same_store = request.cookies.get(HANDOFF_COOKIE) == lr.handoff
+    user = find_user(db, email, sub)
+    if user is not None:
+        # 기존 사용자: 정원이 차도 항상 로그인. 동의가 필요하면 로그인 뒤 모든 화면에서 /consent 로 안내된다
+        touch_login(db, user, email, name, sub)
+        return finish_login(request, db, lr, user.id, same_store)
 
-    user = get_or_create_user(db, email, claims.get("name", ""), claims.get("sub"))
-    lr.user_id = user.id
-    lr.completed_at = clock.now()
-
-    if request.cookies.get(HANDOFF_COOKIE) == lr.handoff:
-        # 시작한 곳과 같은 쿠키 저장소 → 바로 로그인
-        lr.consumed_at = clock.now()
+    # 새 사용자: 정원을 먼저 확인(최종 확인은 동의 제출 때 트랜잭션 안에서) → 동의 화면. 이 브라우저에서 동의를 받는다
+    if not is_admin_email(email) and members_count(db) >= settings.max_users:
+        lr.completed_at = clock.now()  # 같은 로그인 요청을 다시 쓰지 못하게
         db.commit()
-        _login(request, user.id)
-        resp = RedirectResponse("/today", status_code=303)
-        resp.delete_cookie(HANDOFF_COOKIE)
-        return resp
-
-    # 다른 저장소(예: iOS 홈 화면 앱에서 시작했는데 Safari 에서 끝남) → 앱으로 돌아가 넘겨받기
+        return full_page(request)
+    lr.completed_at = clock.now()  # 이 로그인 요청은 사용됨 (user_id 는 동의 제출 때 채운다)
+    start_signup(request, email, name, sub, lr.id, same_store)
     db.commit()
-    return templates.TemplateResponse(request, "login_return.html", {"email": user.email})
+    return RedirectResponse("/consent", status_code=303)
 
 
 @router.get("/auth/handoff")
@@ -190,15 +240,31 @@ def handoff(request: Request, redirect: int = 0, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/dev")
-def dev_login(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
-    """개발·테스트 전용 로그인. DEV_LOGIN=true 일 때만 동작 (운영에서는 서버가 시작을 거부)."""
+def dev_login(request: Request, email: str = Form(...), agree: str = Form(""), db: Session = Depends(get_db)):
+    """개발·테스트 전용 로그인. DEV_LOGIN=true 일 때만 동작 (운영에서는 서버가 시작을 거부).
+
+    구글 로그인과 같은 규칙: 기존 사용자는 그대로, 새 사용자는 동의 화면을 거쳐 정원 안에서 만든다.
+    agree=1 이면 (테스트 편의) 현재 버전에 동의한 것으로 바로 기록한다.
+    """
     if not settings.dev_login:
         return HTMLResponse("개발용 로그인이 꺼져 있습니다.", status_code=404)
-    if not email_allowed(email):
-        return _login_page(request, "아직 초대되지 않은 계정입니다.", 403)
-    user = get_or_create_user(db, email)
-    _login(request, user.id)
-    return RedirectResponse("/today", status_code=303)
+    user = find_user(db, email)
+    if user is None:
+        if agree:
+            try:
+                uid = create_user(email, consent=True)
+            except CapacityFull:
+                return full_page(request)
+            return finish_login(request, db, None, uid, True)
+        if not is_admin_email(email) and members_count(db) >= settings.max_users:
+            return full_page(request)
+        start_signup(request, normalize_email(email), "", None, None, True)
+        return RedirectResponse("/consent", status_code=303)
+    touch_login(db, user, email)
+    if agree:
+        record_consent(user)
+        db.commit()
+    return finish_login(request, db, None, user.id, True)
 
 
 @router.post("/logout")

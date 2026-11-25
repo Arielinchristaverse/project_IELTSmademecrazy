@@ -5,7 +5,6 @@ _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
 os.environ["SCHEDULER_ENABLED"] = "false"
 os.environ["DEV_LOGIN"] = "true"
-os.environ.pop("ALLOWED_EMAILS", None)
 os.environ["ADMIN_EMAIL"] = "me@example.com"
 os.environ.pop("RENDER", None)
 
@@ -13,10 +12,10 @@ import pytest  # noqa: E402
 from pywebpush import WebPushException  # noqa: E402
 
 from app.config import settings  # noqa: E402
-from app.db import Base, SessionLocal, engine  # noqa: E402
+from app.db import Base, SessionLocal, engine, signup_engine  # noqa: E402
 from app.models import PushSubscription  # noqa: E402
 from app.services import push  # noqa: E402
-from app.services.users import get_or_create_user  # noqa: E402
+from app.services.users import get_or_create_user, record_consent  # noqa: E402
 from app.clock import now as _now  # noqa: E402
 from scripts.gen_vapid import generate  # noqa: E402
 
@@ -25,6 +24,7 @@ from scripts.gen_vapid import generate  # noqa: E402
 def db(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)  # 백업 등 상대 경로 파일이 임시 폴더에 생기도록
     engine.dispose()
+    signup_engine.dispose()
     Base.metadata.drop_all(engine)
     with engine.begin() as conn:
         conn.exec_driver_sql("DROP TABLE IF EXISTS alembic_version")
@@ -39,13 +39,16 @@ def user(db):
     """기본 테스트 사용자 = 관리자(ADMIN_EMAIL), 온보딩 완료 상태."""
     u = get_or_create_user(db, "me@example.com")
     u.onboarding_step = 3
+    record_consent(u)
     db.commit()
     return u
 
 
-def login(client, email="me@example.com"):
-    """개발용 로그인(DEV_LOGIN)으로 해당 이메일 사용자로 들어간다."""
-    return client.post("/auth/dev", data={"email": email}, follow_redirects=False)
+def login(client, email="me@example.com", agree=True):
+    """개발용 로그인(DEV_LOGIN)으로 해당 이메일 사용자로 들어간다.
+    agree=True: 현재 약관·방침 버전에 동의한 것으로 기록 (동의 흐름 자체를 시험할 때는 False)."""
+    data = {"email": email, **({"agree": "1"} if agree else {})}
+    return client.post("/auth/dev", data=data, follow_redirects=False)
 
 
 # ---------------------------------------------------------------- 웹 푸시 (가짜 발송)

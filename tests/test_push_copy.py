@@ -27,7 +27,6 @@ def put(db, user, d, code, tasks=True):
     db.add(CalendarDay(user_id=user.id, date=d, shift_code=code))
     if tasks and db.scalar(select(Task).where(Task.user_id == user.id)) is None:
         db.add(Task(user_id=user.id, name="리딩", subject="R", duration_min=30, weekly_count=7))
-    user.notify_channel = "push"
     user.onboarding_step = 3
     db.commit()
 

@@ -41,10 +41,10 @@ def test_login_js_ios_detection_in_node():
 def test_render_yaml_declares_all_settings():
     text = (ROOT / "render.yaml").read_text(encoding="utf-8")
     for key in [
-        "ADMIN_EMAIL", "ALLOWED_EMAILS", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
+        "ADMIN_EMAIL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
         "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "SECRET_KEY", "DATABASE_URL", "MAX_USERS",
     ]:
         assert f"key: {key}" in text, key
-    for gone in ("MAIL_BACKEND", "GMAIL_", "NOTIFY_CHANNELS", "MAIL_DAILY_LIMIT", "DEV_LOGIN"):  # 푸시 전용
+    for gone in ("MAIL_BACKEND", "GMAIL_", "NOTIFY_CHANNELS", "MAIL_DAILY_LIMIT", "DEV_LOGIN", "ALLOWED_EMAILS"):  # 푸시 전용 · 정원제
         assert gone not in text, gone
     assert "name: afterwork" in text and "mountPath: /var/data" in text

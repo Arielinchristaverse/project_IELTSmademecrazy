@@ -1,4 +1,4 @@
-"""계정 정보, 계정 삭제(모든 데이터), 개인정보처리방침."""
+"""계정 정보, 계정 삭제(모든 데이터)."""
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -29,8 +29,3 @@ def account_delete(
     delete_user(db, user)
     request.session.clear()
     return RedirectResponse("/login?deleted=1", status_code=303)
-
-
-@router.get("/privacy")
-def privacy(request: Request):
-    return templates.TemplateResponse(request, "privacy.html", {})

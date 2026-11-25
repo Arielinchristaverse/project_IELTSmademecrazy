@@ -53,15 +53,16 @@ class User(Base):
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     name: Mapped[str] = mapped_column(String(100), default="")
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Seoul")  # 컬럼만 (로직은 Asia/Seoul)
-    # (메일 기능 제거로 쓰지 않음. 0007 에서 모두 'push' / '' 로 정리. 컬럼 삭제는 승인 후)
-    notify_channel: Mapped[str] = mapped_column(String(10), default="push")
-    notify_email: Mapped[str] = mapped_column(String(255), default="")
     sentence_cursor: Mapped[int] = mapped_column(Integer, default=0)
     onboarding_step: Mapped[int] = mapped_column(Integer, default=0)
     last_prepared_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 가입 동의 기록: 동의한 문서 버전과 시각. 현재 버전과 다르면 동의 화면을 다시 거친다
+    terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    privacy_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    agreed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 
@@ -191,19 +192,6 @@ class Assignment(Base):
 
     task: Mapped[Task] = relationship(lazy="joined")
     makeup_of: Mapped["Assignment | None"] = relationship(remote_side="Assignment.id", lazy="joined")
-
-
-class ActionToken(Base):
-    """(메일 기능 제거로 쓰지 않음) 예전 메일 버튼용 1회용 토큰. 테이블 삭제는 승인 후."""
-
-    __tablename__ = "action_tokens"
-    token: Mapped[str] = mapped_column(String(64), primary_key=True)
-    assignment_id: Mapped[int] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
-    action: Mapped[str] = mapped_column(String(10))  # done | missed
-    expires_at: Mapped[datetime] = mapped_column(DateTime)
-    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    assignment: Mapped[Assignment] = relationship(lazy="joined")
 
 
 class Sentence(Base):

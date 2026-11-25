@@ -29,7 +29,7 @@ cp .env.example .env                   # Windows: copy .env.example .env
 uvicorn app.main:app --port 8000
 ```
 
-- http://localhost:8000 → **개발용 로그인**에 아무 이메일 입력 → 온보딩(근무 유형 → 과제 → 근무 달력 → 알림)
+- http://localhost:8000 → **개발용 로그인**에 아무 이메일 입력 → **동의 화면** → 온보딩(근무 유형 → 과제 → 근무 달력 → 알림)
 - 웹 푸시는 `localhost` 에서도 동작합니다(브라우저가 localhost 를 안전한 주소로 취급). VAPID 키가 필요합니다(아래 3-2).
 - 테스트: `pytest -q` (Node 가 있으면 서비스 워커·로그인 스크립트 테스트도 함께 실행)
 
@@ -60,7 +60,7 @@ Starter 요금제(약 $7/월) + 디스크 1GB(약 $0.25/월). 무료 요금제�
 
 ### 3-1. 구글 로그인 준비 (Google Cloud Console)
 1. https://console.cloud.google.com → 새 프로젝트 → **Google Auth Platform**(OAuth 동의 화면)
-2. 앱 이름 `afterwork`, 대상 **외부**, 게시 상태 **테스트** → 테스트 사용자에 쓸 사람의 Gmail 추가
+2. 앱 이름 `afterwork`, 대상 **외부**. 시험 중에는 게시 상태 **테스트**(테스트 사용자만 로그인 가능), **일반 공개 전에 "프로덕션"으로 게시**
 3. **클라이언트 → 웹 애플리케이션** 생성 → 클라이언트 ID / 보안 비밀번호 보관
 4. Render 주소가 정해지면 **승인된 리디렉션 URI** 에 `https://<render주소>/auth/google/callback` 추가
 
@@ -90,9 +90,8 @@ python -m scripts.gen_vapid mailto:you@example.com
 | `VAPID_PRIVATE_KEY` | 웹 푸시 개인 키 | **필수** | 위와 한 쌍. 외부에 노출 금지 |
 | `VAPID_SUBJECT` | 푸시 서버에 알리는 운영자 연락처 | **필수** | `mailto:운영 문의 주소` 형식 |
 | `ADMIN_EMAIL` | 관리자 구글 이메일 (관리자 화면·백업, 정원 제외) | 권장 | 관리자는 이 계정 하나. 바꾸고 재배포하면 예전 관리자 권한은 빠짐. 비우면 관리자 플래그를 바꾸지 않음 |
-| `MAX_USERS` | 가입 정원 (관리자 제외) | 선택 (기본 50) | `50`. 3단계부터 가입 시 적용 |
+| `MAX_USERS` | 가입 정원 (관리자 제외) | 선택 (기본 50) | `50`. 새 사용자를 만드는 순간에만 확인, 기존 사용자 로그인은 항상 허용 |
 | `BASE_URL` | 앱 주소 (로그인 리디렉션·푸시 링크) | 선택 | 비우면 Render 주소 자동 사용. 커스텀 도메인을 쓰면 `https://…` 로 지정 |
-| `ALLOWED_EMAILS` | 가입 허용 목록 (쉼표 구분) | 선택 | 3단계(정원제)에서 제거 예정. 지금은 비우면 누구나 가입 |
 | `DATABASE_URL` | DB 위치 | 고정 | `sqlite:////var/data/app.db` (render.yaml) |
 | `TIMEZONE` | 날짜·알림 기준 시간대 | 고정 | `Asia/Seoul` |
 | `DEV_LOGIN` | 개발용 이메일 로그인 | **운영 금지** | 운영에서 켜져 있으면 시작 거부. 로컬·Codespaces 전용 |
@@ -117,6 +116,19 @@ python -m scripts.gen_vapid mailto:you@example.com
   마이그레이션은 하나의 트랜잭션이라 중간에 실패해도 DB 가 반쯤 바뀐 채 남지 않습니다.
 - **수동 백업**: 관리자 계정으로 로그인 → **설정 → 관리자 화면 → DB 백업 내려받기** (아이패드에서도 가능).
   또는 Render **Shell** 에서 `python -m scripts.backup_db`.
+- **0008(동의 기록·메일 열 삭제) 직전 백업은 따로 보관**: 0008 은 열을 지우는 변경이라, 배포 직후 Render **Shell** 에서
+  ```
+  mkdir -p /var/data/keep && cp /var/data/backups/app-before-0008-*.db /var/data/keep/
+  ls -l /var/data/keep
+  ```
+  로 매일 정리(30일)되지 않는 곳에 복사해 둡니다. 이 파일에도 개인정보가 있으므로 **운영이 안정되면 30일 안에 지웁니다**
+  (`rm /var/data/keep/app-before-0008-*.db`, 개인정보처리방침의 "백업 30일 보관"과 맞추기 위해).
+- **0008 이전으로 되돌리기(복원)**: 이 백업은 배포 직전 운영 DB 그대로(마이그레이션 0006)입니다. 백업 이후에 생긴 데이터는 사라집니다.
+  1. Render Shell: 지금 DB 를 보관 `cp /var/data/app.db /var/data/keep/app-broken-$(date +%Y%m%d-%H%M).db`
+  2. Render Shell: 백업을 제자리에 `cp /var/data/keep/app-before-0008-<시각>.db /var/data/app.db`
+  3. 바로 Render **Events → 이전 배포 Rollback** (또는 Manual Deploy 에서 태그 `mail-feature-final` = 커밋 `5cb28b3` 배포).
+     새 코드가 다시 시작되면 0007·0008 을 다시 적용하므로, 2와 3 사이를 짧게 합니다.
+  4. `/healthz` 와 Logs 의 `[migrate]` 줄(0006 그대로면 출력 없음)을 확인하고, 실기기에서 로그인·오늘 화면을 확인합니다.
 - **마이그레이션 리허설**: 운영 백업 파일로 `python -m scripts.rehearse_migrations <백업.db>` → 임시 사본에 한 단계씩 적용하며
   기존 데이터 변화·외래키·무결성을 검사하고, 사용자별 주요 화면이 열리는지 확인한 뒤 사본을 지웁니다(출력에 개인정보 없음).
 - **복원**: Render Shell 에서 백업 파일을 `/var/data/app.db` 로 복사한 뒤, 그 백업과 같은 시점의 커밋으로 다시 배포합니다.
@@ -143,6 +155,11 @@ python -m scripts.gen_vapid mailto:you@example.com
 | 재알림 | 유형별 재알림 시각(기본: 알림 + 6시간, 자정을 넘으면 없음, 끄기 가능)에, 그날 **아직 기록하지 않은 과제**가 남아 있으면 한 번 더. 정기 알림이 실제로 간 날만, 하루 1회. 서버 재시작 시 그날 안이면 늦게라도, 자정 이후에는 안 보냄. 푸시 문구: 첫 알림 본문은 과제 요약(`오늘의 공부 과제 N개 · 총 M분`), 브랜드 인사말은 **재알림에만** (날짜별 순환). 문구는 `app/services/notify_text.py` |
 | 푸시 실패 | 404/410 이면 그 기기 구독 삭제, 그 외 10분 간격 최대 3회 재시도 |
 | 영어 문장 | 날짜가 바뀔 때 한 번 다음 문장으로 (그날 오늘 화면은 하루 종일 같은 문장) |
+| 가입 (정원제) | 구글 계정이 있으면 누구나 **선착순** 가입. 정원 `MAX_USERS`(기본 50), 관리자 제외. 정원은 새 사용자를 만드는 순간에만 확인(정원 확인과 생성이 한 트랜잭션, SQLite `BEGIN IMMEDIATE` 로 동시 가입에도 초과 없음). 기존 사용자 로그인은 항상 허용, 계정 삭제 시 자리 반환. 가득 차면 계정을 만들지 않고 안내 화면(문의처만, 대기자 수집 없음). 로그인 화면에 숫자 없음 |
+| 가입 동의 | 구글 인증 → (정원 확인) → **동의 화면**(이용약관·개인정보 수집·이용·만 14세 이상, 모두 필수) → 동의 제출 때만 사용자 생성. 그 전에는 인증 정보를 서명된 세션 쿠키에만 10분 보관. 동의 기록(`terms_version`, `privacy_version`, `agreed_at`)은 계정 삭제 시 함께 삭제 |
+| 재동의 | 로그인 상태의 **모든 요청**에서 현재 문서 버전을 확인해, 동의 기록이 없거나 버전이 올라갔으면 동의 화면으로(정원 검사 없음). 동의 전에도 계정 화면(삭제)·로그아웃은 가능 |
+| 약관·방침 | `/terms`, `/privacy` 는 `content/terms.md`, `content/privacy.md` 를 원문 HTML 없이 렌더링. 파일 맨 위 `title`·`version`·`effective_date` 를 읽음. **본문을 바꾸면 version 을 올려야** 다시 동의를 받음 |
+| iPhone 쿠키 분리 | 홈 화면 앱에서 시작한 구글 로그인이 Safari 에서 끝나면, **그 창에서 동의**를 받아 계정을 만든 뒤 "앱으로 돌아가세요" → 앱이 넘겨받기로 로그인(10분, 1회용) |
 | 관리자 화면 | `/admin` (ADMIN_EMAIL 계정만, 다른 사용자는 404): 오늘 푸시 발송 현황, 만료 삭제 수, 알림을 켠 가입자 비율, 가입자/정원, 백업 |
 | 상태 확인 | `/healthz` 는 DB 연결만 확인해 `{"ok": true, "db": "ok"}` (실패 시 503). 설정·사용자 정보는 내보내지 않음 |
 
@@ -151,13 +168,14 @@ python -m scripts.gen_vapid mailto:you@example.com
 app/
   main.py  config.py  db.py  models.py  deps.py  auth.py  scheduler.py  clock.py  seed.py
   routers/   today · weeks · calendar · tasks · settings · shifts · sentences · onboarding · account
-             push · pwa · install · admin
-  services/  allocator(배분) · daily(준비·알림) · shifts(근무 유형) · push · progress · users · google_auth · backup · maintenance(매일 백업·정리) · admin_stats · counters · extras
+             push · pwa · install · admin · consent(동의·약관·방침)
+  services/  allocator(배분) · daily(준비·알림) · shifts(근무 유형) · push · progress · users · google_auth · backup · maintenance(매일 백업·정리) · admin_stats · counters · extras · legal(약관·방침)
   templates/ 화면 · partials/ · onboarding/
   static/    style.css · sw.js · push.js · push-status.js · login.js · app.js · icons/ · fonts/
-migrations/  Alembic (0001 기준 · 0002 다중 사용자 · 0003 푸시 구독 · 0004 사용자 정의 근무 유형 · 0005 재알림 · 0006 여유가 생기면 해볼 과제 · 0007 푸시 전용 전환)
+migrations/  Alembic (0001 기준 · 0002 다중 사용자 · 0003 푸시 구독 · 0004 사용자 정의 근무 유형 · 0005 재알림 · 0006 여유가 생기면 해볼 과제 · 0007 푸시 전용 전환 · 0008 동의 기록·메일 열 삭제)
 scripts/     migrate · rehearse_migrations · backup_db · gen_vapid · make_icons.js
 tests/       pytest + tests/js (Node)
+content/     terms.md · privacy.md (약관·방침 본문, 머리 정보에 version)
 render.yaml  .devcontainer/  .env.example
 ```
 

@@ -21,7 +21,7 @@ from app.models import CalendarDay, DailyCounter, LoginRequest, NotifyLog, Shift
 from app.services import maintenance
 from app.services.backup import backup_dir, list_backups
 from app.services.counters import get as counter
-from app.services.daily import notify_due, run_due
+from app.services.daily import run_due
 from app.services.users import get_or_create_user
 from scripts import migrate
 from tests.conftest import add_sub, login
@@ -60,22 +60,12 @@ def test_migration_0007_switches_everyone_to_push(tmp_path, monkeypatch):
         )
     con.commit()
     con.close()
-    assert migrate.run(url).startswith("upgraded 0006 -> ")
+    command.upgrade(migrate.alembic_config(url), "0007")
     con = sqlite3.connect(path)
     assert con.execute("select notify_channel, notify_email from users order by id").fetchall() == [("push", "")] * 3
     assert con.execute("select count(*) from daily_counters").fetchone()[0] == 0
     assert con.execute("select count(*) from users").fetchone()[0] == 3  # 사용자는 그대로
     con.close()
-
-
-def test_old_channel_values_still_get_push_only(db, user, pusher):
-    setup_day(db, user)
-    user.notify_channel, user.notify_email = "email", "x@example.com"  # 0007 이전 값이 남아 있어도
-    db.commit()
-    add_sub(db, user, "https://web.push.apple.com/me")
-    out = notify_due(db, user, datetime.combine(MON, time(6)))
-    assert [o.split(":")[0] for o in out] == ["push"] and len(pusher["calls"]) == 1
-    assert {log.channel for log in db.scalars(select(NotifyLog))} == {"push"}
 
 
 # ------------------------------------------------------------------ 알림 상태 배너
@@ -273,5 +263,5 @@ def test_rehearsal_script_runs_on_old_backup(tmp_path):
     r = subprocess.run([sys.executable, "-m", "scripts.rehearse_migrations", str(path)], cwd=ROOT, env=env,
                        capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "현재 0005 → 적용할 단계: 0006, 0007" in r.stdout and "결과: 문제 없음" in r.stdout
+    assert "현재 0005 → 적용할 단계: 0006, 0007, 0008" in r.stdout and "결과: 문제 없음" in r.stdout
     assert path.exists() and json.dumps(r.stdout).count("@") == 0
