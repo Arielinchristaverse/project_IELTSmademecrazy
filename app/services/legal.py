@@ -36,9 +36,19 @@ def _parse(text: str) -> tuple[dict[str, str], str]:
     return meta, text
 
 
+def _split_title(body: str) -> tuple[str, str]:
+    """머리 정보에 title 이 없으면 본문 맨 앞의 '# 제목' 을 제목으로 쓰고 본문에서 뺀다 (제목이 두 번 나오지 않게)."""
+    lines = body.lstrip("\n").split("\n")
+    if lines and lines[0].startswith("# "):
+        return lines[0][2:].strip(), "\n".join(lines[1:])
+    return "", body
+
+
 @lru_cache(maxsize=None)
 def load(key: str) -> Doc:
     meta, body = _parse((CONTENT / f"{key}.md").read_text(encoding="utf-8"))
+    if not meta.get("title"):
+        meta["title"], body = _split_title(body)
     version = meta.get("version", "")
     if not version or len(version) > 20:
         raise RuntimeError(f"content/{key}.md 머리 정보에 version(20자 이내)이 필요합니다.")

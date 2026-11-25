@@ -225,7 +225,11 @@ def test_terms_and_privacy_pages_render_from_content():
         for path, doc in (("/terms", legal.terms()), ("/privacy", legal.privacy())):
             html = c.get(path).text
             assert doc.title in html and f"버전 {doc.version}" in html and doc.effective_date in html
-        assert "임시 본문" in c.get("/terms").text
+        terms, privacy = c.get("/terms").text, c.get("/privacy").text
+        assert "제1조 (목적)" in terms and "임시 본문" not in terms + privacy  # 최종본
+        assert terms.count("<h1>") == 1 and privacy.count("<h1>") == 1  # 제목은 한 번만 (본문 첫 # 제목을 문서 제목으로)
+        assert "서명된 세션 쿠키에 10분 동안만" in privacy and "<table>" in privacy
+        assert legal.terms().version == legal.privacy().version == "2026-11-26"
         login_html = c.get("/login").text
         assert 'href="/terms"' in login_html and 'href="/privacy"' in login_html
 

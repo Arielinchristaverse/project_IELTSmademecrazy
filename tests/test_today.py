@@ -126,6 +126,6 @@ def test_progress_bar_on_today(db, user, on_day):
 def test_privacy_page_has_operator_and_contact():
     with TestClient(app) as c:
         html = c.get("/privacy").text
-    assert "운영자: afterwork" in html
-    assert html.count('href="mailto:arielinafterwork@gmail.com"') == 2  # 상단 문의 · 하단 연락처
+    assert "운영자: afterwork 운영자" in html
+    assert html.count("arielinafterwork@gmail.com") >= 3  # 상단 문의 · 권리 행사 · 보호책임자
     assert "arielinchristaverse@gmail.com" not in html  # 예전 연락처가 남아 있지 않음

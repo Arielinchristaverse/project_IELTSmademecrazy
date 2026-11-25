@@ -256,7 +256,8 @@ details.archived summary { cursor: pointer; font-size: 13px; color: var(--text-s
 .consent-form .fine { display: block; }
 .doc-links { font-size: 13px; color: var(--text-secondary); }
 .doc blockquote { margin: 16px 0; padding: 4px 0 4px 14px; border-left: 3px solid var(--accent-focus); color: var(--text-secondary); font-size: 14px; }
-.doc table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.doc table { width: 100%; border-collapse: collapse; font-size: 14px; display: block; overflow-x: auto; }
+.doc th, .doc td { min-width: 6.5em; vertical-align: top; }
 .doc th, .doc td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border-grid); }
 .swatches { display: flex; gap: 10px; flex-wrap: wrap; }
 .swatch input { position: absolute; opacity: 0; pointer-events: none; }
